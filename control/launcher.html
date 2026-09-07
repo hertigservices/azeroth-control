@@ -3,18 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Azeroth Realm Launcher</title>
+<title>Azeroth Control</title>
 <!-- No webfont link on purpose: this panel must render with no network at
      all, and a local tool should not tell a third party each time it opens.
      The stacks below name the designed face first, so it is used if it is
      installed locally, then fall back through faces Windows ships with. -->
 <style>
-/* Dark, gold-accented launcher styling in the WotLK idiom
-   (ascension-archive/launcher/renderer/assets/CsHqwm6D.css) and their splash.
-   Token VALUES are theirs; every rule below is written here. No Ascension
-   artwork, logo or font file is used - the display face is Cinzel standing in
-   for their Beaufort, and all "art" is a procedural gradient off each realm's
-   own accent colour. */
+/* Dark, gold-accented styling in the WotLK idiom: near-black surfaces under a
+   parchment gold, which is the palette the game's own UI has used since 2004.
+   No third-party artwork, logo or font file is used anywhere in this repo - the
+   display face is Cinzel with a local-serif fallback, the icons are hand-written
+   SVG paths further down this file, and every piece of "art" on the page is a
+   procedural gradient computed from each realm's own accent colour. Change
+   --primary and the whole page follows. */
 :root{
   --radius:.625rem;
   --background:#121416; --background-alt:#191b1e; --background-alt2:#1c1e21;
