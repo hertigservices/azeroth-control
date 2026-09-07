@@ -16,7 +16,7 @@ uses [pywebview](https://pywebview.flowrl.com/) if you want a real window instea
 tab, and the icon generator uses Pillow. Both fail politely to a message when absent.)*
 
 ```bash
-git clone https://github.com/YOUR-GITHUB-USERNAME/azeroth-control.git
+git clone https://github.com/hertigservices/azeroth-control.git
 ```
 
 > **Not affiliated with Blizzard Entertainment.** No game client, game data or copyrighted Blizzard
@@ -36,7 +36,7 @@ installs **after** you have read that report and said go.
 
 ```text
 I want to install "Azeroth Control", a local control panel for an AzerothCore 3.3.5a
-WoW server: https://github.com/YOUR-GITHUB-USERNAME/azeroth-control
+WoW server: https://github.com/hertigservices/azeroth-control
 
 Do this in two stages. Do NOT run any of its code during stage 1.
 

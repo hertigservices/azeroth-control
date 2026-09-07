@@ -23,7 +23,7 @@ exactly one file of its own.
 ### 1. Get the repo and check Python
 
 ```bash
-git clone https://github.com/YOUR-GITHUB-USERNAME/azeroth-control.git
+git clone https://github.com/hertigservices/azeroth-control.git
 cd azeroth-control
 python --version
 ```
