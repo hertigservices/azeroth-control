@@ -6,8 +6,7 @@ realms/profiles.json. Everything interesting is documented there.
 
 Usage:
     python switch-realm.py --list
-    python switch-realm.py --to spelldraft
-    python switch-realm.py --to vanilla
+    python switch-realm.py --to <slug>       (slug as shown by --list)
     python switch-realm.py --stop
 """
 import argparse

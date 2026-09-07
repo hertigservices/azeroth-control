@@ -2161,10 +2161,12 @@ function cmdCard(c, kind, ctxData){
 
 /* ---------------------------------------------------------- reference */
 /* The old panel's codex, now partitioned per realm.  It reads
-   refdata-<slug>.json, built from that realm's own world DB and its own
-   Data/dbc/Spell.dbc, because the realms genuinely disagree: Ascension knows
-   127,502 creatures and 208,192 named spells where vanilla knows 30,178 and
-   49,839.  A single shared file showed vanilla's numbers under every profile.
+   refdata-<slug>.json, built from that realm's OWN world DB and its OWN
+   Data/dbc/Spell.dbc, because two realms genuinely disagree about what exists:
+   a heavily modified world can hold several times the creatures and spells a
+   stock 3.3.5a one does.  A single shared file showed the first realm's
+   numbers under every profile - a search that quietly missed most of what was
+   actually on the realm you were looking at, which is worse than no search.
    Switching profiles drops the loaded set and fetches the new one. */
 var QUAL = ['Poor','Common','Uncommon','Rare','Epic','Legendary','Artifact','Heirloom'];
 var RANKN = ['Normal','Elite','Rare Elite','Boss','Rare'];

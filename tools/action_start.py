@@ -1,9 +1,9 @@
 """Tray action: start whichever realm profiles.json says is active.
 
-control.start_all() is shorter but bound to the vanilla SERVER_DIR, so with
-SpellDraft active it would launch the vanilla binaries while the tray, the
-launcher and the registry all said otherwise. realms.py takes the profile as
-data and starts that profile's own servers, from its own directory.
+control.start_all() is shorter but bound to the DEFAULT realm's SERVER_DIR, so
+with a second realm active it would launch the first realm's binaries while the
+tray, the launcher and profiles.json all said otherwise. realms.py takes the
+profile as data and starts that profile's own servers, from its own directory.
 """
 import os
 import sys

@@ -13,8 +13,7 @@
 
     Usage:
         Switch-Realm.ps1                 list profiles and what is running
-        Switch-Realm.ps1 -To spelldraft  switch to the SpellDraft realm
-        Switch-Realm.ps1 -To vanilla     switch back to the progression realm
+        Switch-Realm.ps1 -To <slug>      switch to that realm (slug from -List)
         Switch-Realm.ps1 -Stop           gracefully stop the running realm
 #>
 param(
