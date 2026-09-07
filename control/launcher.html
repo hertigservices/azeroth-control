@@ -1,0 +1,2564 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Azeroth Realm Launcher</title>
+<!-- No webfont link on purpose: this panel must render with no network at
+     all, and a local tool should not tell a third party each time it opens.
+     The stacks below name the designed face first, so it is used if it is
+     installed locally, then fall back through faces Windows ships with. -->
+<style>
+/* Dark, gold-accented launcher styling in the WotLK idiom
+   (ascension-archive/launcher/renderer/assets/CsHqwm6D.css) and their splash.
+   Token VALUES are theirs; every rule below is written here. No Ascension
+   artwork, logo or font file is used - the display face is Cinzel standing in
+   for their Beaufort, and all "art" is a procedural gradient off each realm's
+   own accent colour. */
+:root{
+  --radius:.625rem;
+  --background:#121416; --background-alt:#191b1e; --background-alt2:#1c1e21;
+  --foreground:#cdcdcd; --foreground-alt:#bebebe; --foreground-dim:#8a8a8a;
+  --primary:#c9aa71; --primary-alt:#ad9362;
+  --secondary:#1e1e1e; --secondary-alt0:#252525; --secondary-alt:#2b2b2b;
+  --secondary-alt2:#353535; --secondary-light:#4b4b4b; --secondary-lighter:#5c5c5c;
+  --hairline:#525252;
+  --filling-alt2:#0c0e10;
+  --launcher-accent:#f5802b; --launcher-accent-secondary:#8c5023;
+  --launcher-accent-foreground:#fb8c4b; --launcher-accent-foreground-secondary:#f4b037;
+  --launcher-theme:#382d2d; --launcher-theme-dialog:#2a2528;
+  --cta-1:#a8622a; --cta-2:#9a5826; --cta-3:#8c5023;
+  --ok:#5bd07a; --warn:#f4b037; --bad:#e05555; --idle:#5c5c5c;
+  --cta-button-height:4rem; --cta-button-radius:1.5rem;
+  --cta-indicator:3rem; --nav-h:4rem; --rail-w:16rem;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--background); color:var(--foreground);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--primary);text-decoration:none}
+a:hover{color:var(--launcher-accent-foreground-secondary)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--background)}
+::-webkit-scrollbar-thumb{background:var(--secondary-alt2);border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:var(--secondary-light)}
+.display{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:.02em}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--foreground-dim)}
+
+/* ---------------------------------------------------------------- shell */
+.app{display:grid;grid-template-rows:var(--nav-h) 1fr auto;height:100vh;height:100dvh}
+
+/* navbar: their fixed h-16 bg-secondary bar with a 1px hairline instead of a shadow */
+.nav{display:flex;align-items:center;gap:1.5rem;padding:0 1.25rem;
+  background:var(--secondary);box-shadow:0 1px 0 0 var(--hairline);z-index:6}
+.brand{display:flex;align-items:baseline;gap:.55rem;margin-right:.5rem}
+.brand b{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-size:1.05rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--primary)}
+.brand span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--foreground-dim)}
+.navtabs{display:flex;gap:.15rem;margin-right:auto;min-width:0;overflow-x:auto;
+  scrollbar-width:none}
+.navtabs::-webkit-scrollbar{display:none}
+/* The brand and the Hub/Classic buttons are meant to wrap to two lines when the
+   bar tightens - that is the compact look, not a squeeze artefact - so they stay
+   shrinkable and the window's min_size (see launcher_app.py) is what actually
+   keeps the bar above its 1365px floor.  The scroll above is only insurance for
+   a future ninth tab. */
+.navtab{appearance:none;background:none;border:0;cursor:pointer;padding:.5rem .8rem;border-radius:.35rem;
+  font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--foreground-alt);
+  display:flex;align-items:center;gap:.45rem;transition:color .15s,background .15s}
+.navtab:hover{color:#e8e8e8;background:var(--secondary-alt0)}
+.navtab[aria-selected="true"]{color:var(--primary);background:var(--secondary-alt)}
+.navtab svg{width:1.15rem;height:1.15rem;fill:currentColor}
+.navright{display:flex;align-items:center;gap:.85rem}
+.pill{display:inline-flex;align-items:center;gap:.45rem;padding:.3rem .7rem;border-radius:999px;
+  background:var(--secondary-alt0);border:1px solid rgba(255,255,255,.08);
+  font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--foreground-alt)}
+.dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--idle);flex:0 0 auto}
+.dot.on{background:var(--ok);box-shadow:0 0 8px rgba(91,208,122,.6)}
+.dot.warn{background:var(--warn);box-shadow:0 0 8px rgba(244,176,55,.5)}
+.dot.off{background:var(--bad)}
+.ghost{appearance:none;background:none;border:1px solid rgba(255,255,255,.12);border-radius:.4rem;
+  padding:.35rem .7rem;font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--foreground-alt);cursor:pointer;transition:.15s}
+.ghost:hover{border-color:var(--primary);color:var(--primary)}
+
+/* ---------------------------------------------------------------- body */
+.body{display:grid;grid-template-columns:var(--rail-w) 1fr;min-height:0}
+.rail{background:var(--background-alt);border-right:1px solid rgba(255,255,255,.06);
+  overflow-y:auto;padding:.9rem .7rem;display:flex;flex-direction:column;gap:.9rem}
+.railhead{display:flex;align-items:center;justify-content:space-between;padding:0 .35rem}
+.railgroup{display:flex;flex-direction:column;gap:.3rem}
+.realm{display:flex;align-items:center;gap:.7rem;padding:.6rem .6rem;border-radius:var(--radius);
+  border:1px solid transparent;background:none;cursor:pointer;text-align:left;width:100%;transition:.15s}
+.realm:hover{background:var(--secondary-alt0)}
+.realm[aria-current="true"]{background:var(--secondary-alt);border-color:rgba(201,170,113,.35)}
+.realm .crest{width:2.4rem;height:2.4rem;border-radius:.5rem;flex:0 0 auto;position:relative;
+  display:grid;place-items:center;font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:1rem;color:#14100c;
+  background:linear-gradient(145deg,var(--a) 0%,color-mix(in srgb,var(--a) 45%,#000) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 6px rgba(0,0,0,.5)}
+.realm.dim .crest{filter:grayscale(1) brightness(.55)}
+.realm .rt{min-width:0;flex:1}
+.realm .rn{font-size:13.5px;font-weight:600;color:var(--foreground);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.realm.dim .rn{color:var(--foreground-dim)}
+.realm .rs{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--foreground-dim)}
+.realm[aria-current="true"] .rn{color:var(--primary)}
+
+.main{min-width:0;overflow-y:auto;position:relative}
+.view{display:none}
+.view.on{display:block}
+
+/* hero - their news-shell pattern: art block, dark gradient down to page bg */
+.hero{position:relative;min-height:15rem;display:flex;align-items:flex-end;padding:1.6rem 2rem 1.4rem;
+  overflow:hidden;border-bottom:1px solid rgba(255,255,255,.06)}
+.hero .art{position:absolute;inset:0;
+  background:
+    radial-gradient(115% 130% at 12% 0%,color-mix(in srgb,var(--a) 42%,transparent) 0%,transparent 62%),
+    radial-gradient(90% 110% at 92% 15%,color-mix(in srgb,var(--a) 22%,transparent) 0%,transparent 55%),
+    linear-gradient(155deg,var(--launcher-theme) 0%,var(--filling-alt2) 70%)}
+.hero .art::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(18,20,22,0) 30%,var(--background) 100%)}
+.hero .art::before{content:"";position:absolute;inset:0;opacity:.35;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px);background-size:100% 4px}
+.hero .inner{position:relative;z-index:1;max-width:60rem}
+.hero h1{margin:.35rem 0 .3rem;font-size:2.4rem;line-height:1.1;color:#f0e6d6;
+  text-shadow:0 2px 14px rgba(0,0,0,.85)}
+.hero p{margin:0;color:var(--foreground-alt);font-size:14.5px;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.9rem}
+.badge{padding:.2rem .55rem;border-radius:.3rem;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.14);
+  color:var(--foreground-alt)}
+.badge.gold{border-color:rgba(201,170,113,.5);color:var(--primary)}
+.badge.hot{border-color:rgba(245,128,43,.55);color:var(--launcher-accent-foreground)}
+
+.wrap{max-width:76rem;margin:0 auto;padding:1.6rem 2rem 2.5rem}
+.grid{display:grid;gap:1rem}
+.cols{grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
+.card{background:var(--secondary);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);
+  padding:1rem 1.1rem}
+.card h3{margin:0 0 .7rem;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--foreground-dim)}
+.stat{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.42rem 0;
+  border-bottom:1px solid rgba(255,255,255,.05);font-size:13.5px}
+.stat:last-child{border-bottom:0}
+.stat .k{color:var(--foreground-dim)}
+.stat .v{font-variant-numeric:tabular-nums;font-weight:600;display:flex;align-items:center;gap:.45rem}
+.sectionhead{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;
+  margin:1.9rem 0 .8rem;padding-bottom:.6rem;border-bottom:1px solid var(--secondary-alt)}
+.sectionhead h2{margin:0;font-size:1.2rem;color:#e6dcc9}
+
+/* ------------------------------------------------------------- addons */
+.toolbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1rem}
+.search{flex:1;min-width:12rem;display:flex;align-items:center;gap:.5rem;background:var(--secondary);
+  border:1px solid rgba(255,255,255,.1);border-radius:.45rem;padding:.5rem .7rem}
+.search:focus-within{border-color:var(--primary)}
+.search input{flex:1;min-width:0;background:none;border:0;outline:0}
+.search svg{width:1rem;height:1rem;fill:var(--foreground-dim)}
+.chip{appearance:none;background:var(--secondary);border:1px solid rgba(255,255,255,.1);
+  border-radius:999px;padding:.4rem .85rem;font-size:11.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--foreground-alt);cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--secondary-light)}
+.chip[aria-pressed="true"]{background:rgba(201,170,113,.15);border-color:var(--primary);color:var(--primary)}
+.catgroup{margin-bottom:1.4rem}
+.catbar{display:flex;align-items:center;gap:.6rem;margin:0 0 .5rem;padding-bottom:.4rem;
+  border-bottom:1px solid var(--secondary-alt)}
+.catbar h3{margin:0;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--primary)}
+.catbar .n{font-size:11px;color:var(--foreground-dim);font-variant-numeric:tabular-nums}
+.addon{display:flex;align-items:center;gap:.9rem;padding:.6rem .8rem;border-radius:.5rem;
+  border:1px solid transparent;transition:.15s}
+.addon:hover{background:var(--secondary);border-color:rgba(255,255,255,.07)}
+.addon .icon{width:2.1rem;height:2.1rem;flex:0 0 auto;border-radius:.4rem;display:grid;place-items:center;
+  background:var(--secondary-alt);color:var(--foreground-dim);font-weight:700;font-size:.85rem}
+.addon.ins .icon{background:linear-gradient(145deg,var(--primary),var(--primary-alt));color:#14100c}
+.addon.dis .icon{background:var(--secondary-alt);color:var(--warn)}
+.addon .meta{flex:1;min-width:0}
+.addon .nm{font-size:14px;font-weight:600;display:flex;align-items:center;gap:.45rem}
+.addon .ds{font-size:12.5px;color:var(--foreground-dim);overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.addon .acts{display:flex;align-items:center;gap:.5rem;flex:0 0 auto}
+.tag{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:.1rem .35rem;
+  border-radius:.25rem;border:1px solid rgba(255,255,255,.16);color:var(--foreground-dim)}
+.tag.rec{border-color:rgba(201,170,113,.5);color:var(--primary)}
+.tag.warn{border-color:rgba(244,176,55,.5);color:var(--warn)}
+.sw{appearance:none;width:2.5rem;height:1.35rem;border-radius:999px;background:var(--secondary-alt2);
+  border:1px solid rgba(255,255,255,.1);position:relative;cursor:pointer;transition:.18s;flex:0 0 auto}
+.sw::after{content:"";position:absolute;top:50%;left:.18rem;transform:translateY(-50%);
+  width:.95rem;height:.95rem;border-radius:50%;background:var(--foreground-dim);transition:.18s}
+.sw[aria-checked="true"]{background:rgba(201,170,113,.35);border-color:var(--primary)}
+.sw[aria-checked="true"]::after{left:1.35rem;background:var(--primary)}
+.sw:disabled{opacity:.4;cursor:not-allowed}
+.mini{appearance:none;background:var(--secondary-alt);border:1px solid rgba(255,255,255,.12);
+  border-radius:.35rem;padding:.3rem .65rem;font-size:11px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--foreground-alt);cursor:pointer;transition:.15s}
+.mini:hover{border-color:var(--primary);color:var(--primary)}
+.mini.danger:hover{border-color:var(--bad);color:var(--bad)}
+.mini:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------------------------------------------------------- changelog */
+/* Their layout: aside w-72 nav + flex-1 column of sections, entries divided
+   by border-b-2 border-neutral-800. */
+.clog{display:grid;grid-template-columns:17rem 1fr;gap:2rem;align-items:start}
+.clognav{position:sticky;top:1rem;display:flex;flex-direction:column;gap:.15rem}
+.clognav a{padding:.4rem .6rem;border-radius:.35rem;border-left:2px solid transparent;font-size:13px;
+  color:var(--foreground-dim);display:flex;gap:.55rem;align-items:baseline}
+.clognav a:hover{background:var(--secondary);color:var(--foreground)}
+.clognav a.on{border-left-color:var(--primary);color:var(--primary);background:var(--secondary)}
+.clognav .d{font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--secondary-lighter)}
+.entry{padding:1.2rem 0;border-bottom:2px solid var(--secondary-alt0)}
+.entry:first-child{padding-top:0}
+.entry h3{margin:.35rem 0 .5rem;font-size:1.35rem;color:#e6dcc9;font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif}
+.entry .m{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.entry .sum{color:var(--foreground-alt);margin:.1rem 0 .6rem}
+.entry ul{margin:.4rem 0 0;padding-left:1.1rem;color:var(--foreground-alt)}
+.entry li{margin:.3rem 0}
+.entry .ev{margin-top:.7rem;font-size:11.5px;color:var(--secondary-lighter);
+  font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;word-break:break-all}
+.kind{padding:.15rem .45rem;border-radius:.25rem;font-size:9.5px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;border:1px solid rgba(255,255,255,.16);color:var(--foreground-dim)}
+.kind.server{border-color:rgba(245,128,43,.5);color:var(--launcher-accent-foreground)}
+.kind.config{border-color:rgba(63,208,201,.45);color:#5fd6d0}
+.kind.content{border-color:rgba(201,170,113,.5);color:var(--primary)}
+.kind.client{border-color:rgba(160,120,220,.5);color:#b48bea}
+.kind.tooling{border-color:rgba(130,170,140,.5);color:#8fbf9c}
+
+/* ------------------------------------------------------------- footer */
+.foot{display:flex;align-items:center;gap:1.25rem;padding:.85rem 1.5rem;background:var(--secondary);
+  border-top:1px solid var(--hairline);z-index:5}
+.footinfo{min-width:0;flex:1}
+.footinfo .t{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:.95rem;color:#e6dcc9;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.footinfo .s{font-size:11.5px;color:var(--foreground-dim);display:flex;gap:.9rem;flex-wrap:wrap;
+  margin-top:.15rem}
+.footinfo .s span{display:flex;align-items:center;gap:.35rem}
+
+/* CTA button, dimensions straight from their --cta-button-* tokens */
+.ctawrap{display:flex;align-items:center;gap:.5rem;flex:0 0 auto}
+.cta{position:relative;height:var(--cta-button-height);min-width:13rem;
+  border-radius:var(--cta-button-radius);border:0;cursor:pointer;overflow:hidden;
+  padding:.375rem 1.5rem .375rem .375rem;display:flex;align-items:center;gap:.85rem;
+  background:linear-gradient(180deg,var(--cta-1) 0%,var(--cta-3) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,220,150,.25),0 6px 20px rgba(0,0,0,.55);
+  transition:filter .18s,transform .06s}
+.cta:hover{filter:brightness(1.12)}
+.cta:active{transform:translateY(1px)}
+.cta:disabled{cursor:not-allowed;filter:grayscale(.85) brightness(.6)}
+.cta .ind{width:var(--cta-indicator);height:var(--cta-indicator);border-radius:50%;flex:0 0 auto;
+  background:rgba(0,0,0,.28);display:grid;place-items:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
+.cta .ind svg{width:1.6rem;height:1.6rem;fill:#fff2dd}
+.cta .lbl{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem;min-width:0}
+.cta .lbl b{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-size:1.02rem;letter-spacing:.09em;text-transform:uppercase;
+  color:#fff4e4;text-shadow:0 1px 4px rgba(0,0,0,.6);white-space:nowrap}
+.cta .lbl i{font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:rgba(255,255,255,.72);white-space:nowrap}
+.cta .fill{position:absolute;left:0;bottom:0;height:3px;width:0;background:var(--launcher-accent-foreground-secondary);
+  transition:width .35s ease}
+.cta.busy{background:linear-gradient(180deg,var(--secondary-alt2) 0%,var(--secondary-alt) 100%)}
+.cta.busy .lbl b{color:#e8dcc6}
+.stack{display:flex;flex-direction:column;gap:.3rem}
+
+/* --------------------------------------------------------------- misc */
+.log{background:var(--filling-alt2);border:1px solid rgba(255,255,255,.08);border-radius:.45rem;
+  padding:.7rem .85rem;font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12px;
+  color:#a8b3ad;max-height:16rem;overflow:auto;white-space:pre-wrap;margin-top:.8rem}
+.empty{padding:2.5rem 1rem;text-align:center;color:var(--foreground-dim)}
+#toast{position:fixed;left:50%;bottom:6.5rem;transform:translate(-50%,1rem);opacity:0;pointer-events:none;
+  background:var(--launcher-theme-dialog);border:1px solid rgba(255,255,255,.16);border-radius:.5rem;
+  padding:.65rem 1.1rem;font-size:13px;max-width:36rem;z-index:40;transition:.2s;
+  box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#toast.bad{border-color:rgba(224,85,85,.6)}
+
+/* splash - same beat as their splash.html: pulse logo, orbiting spark, fade out */
+#splash{position:fixed;inset:0;z-index:100;display:grid;place-items:center;
+  background:radial-gradient(120% 120% at 50% 20%,var(--launcher-theme) 0%,var(--filling-alt2) 70%);
+  transition:opacity .45s}
+#splash.gone{opacity:0;pointer-events:none}
+.splash-in{display:flex;flex-direction:column;align-items:center;gap:1.6rem}
+.splash-mark{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:2rem;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--primary);animation:pulse 2s ease-in-out infinite;
+  text-shadow:0 0 18px rgba(0,0,0,.9),0 0 40px rgba(201,170,113,.25)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+.spin-wrap{position:relative;width:44px;height:44px}
+.spin{width:44px;height:44px;border:2px solid rgba(201,170,113,.12);border-top-color:var(--primary);
+  border-right-color:rgba(201,170,113,.35);border-radius:50%;animation:spin 1.2s ease-in-out infinite;
+  box-shadow:0 0 10px rgba(201,170,113,.3),inset 0 0 8px rgba(201,170,113,.1)}
+.spark{position:absolute;width:3px;height:3px;background:#f0d890;border-radius:50%;
+  box-shadow:0 0 4px 1px rgba(244,176,55,.8);animation:orbit 1.2s ease-in-out infinite}
+.spark:nth-child(3){animation-delay:-.4s}
+.spark:nth-child(4){animation-delay:-.8s;opacity:.7}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes orbit{
+  0%{top:0;left:50%;opacity:1;transform:scale(1)}
+  25%{top:50%;left:100%;opacity:.6;transform:scale(.7)}
+  50%{top:100%;left:50%;opacity:.3;transform:scale(.4)}
+  75%{top:50%;left:0;opacity:.1;transform:scale(.3)}
+  100%{top:0;left:50%;opacity:1;transform:scale(1)}}
+.splash-status{font-size:12.5px;letter-spacing:.06em;color:var(--foreground-alt);min-height:1.2rem}
+
+@media (max-width:900px){
+  .body{grid-template-columns:1fr}
+  .rail{display:none}
+  .clog{grid-template-columns:1fr}
+  .clognav{position:static}
+  .navtab i{display:none}
+}
+
+/* ------------------------------------------------- ported control panel */
+/* The old panel's tabs, rebuilt in this launcher's design language rather
+   than iframed: same tokens, same card/stat vocabulary as above. */
+.subtabs{display:flex;gap:.3rem;margin:0 0 1.1rem;flex-wrap:wrap}
+.subtab{appearance:none;background:var(--secondary);border:1px solid rgba(255,255,255,.1);
+  border-radius:.4rem;padding:.4rem .8rem;font-size:11.5px;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--foreground-alt);cursor:pointer;transition:.15s}
+.subtab:hover{border-color:var(--secondary-light);color:#e8e8e8}
+.subtab[aria-selected="true"]{background:rgba(201,170,113,.15);border-color:var(--primary);
+  color:var(--primary)}
+.subtab .n{margin-left:.45rem;font-size:10.5px;color:var(--foreground-dim);
+  font-variant-numeric:tabular-nums}
+
+/* a labelled control: name on the left, live value on the right, input below */
+.knob{padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.knob:last-child{border-bottom:0}
+.knob .kh{display:flex;align-items:baseline;justify-content:space-between;gap:.75rem}
+.knob .kn{font-size:13.5px;font-weight:600}
+.knob .kv{font-variant-numeric:tabular-nums;font-weight:700;color:var(--primary);font-size:13.5px}
+.knob .kf{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--secondary-lighter);
+  overflow-wrap:anywhere}
+.knob .kr{display:flex;align-items:center;gap:.7rem;margin-top:.45rem}
+/* Right-aligns the button when nothing else in the row grows; a no-op next to a
+   slider, which already eats the free space. */
+.knob .kr>.mini{flex:0 0 auto;margin-left:auto}
+.knob input[type=range]{flex:1;min-width:0;appearance:none;height:.35rem;border-radius:999px;
+  background:var(--secondary-alt2);outline:0}
+.knob input[type=range]::-webkit-slider-thumb{appearance:none;width:1rem;height:1rem;border-radius:50%;
+  background:var(--primary);border:1px solid rgba(0,0,0,.5);cursor:pointer;
+  box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.knob input[type=range]:disabled{opacity:.4}
+.knob input[type=number],.knob input[type=text],.knob select{background:var(--secondary-alt0);
+  border:1px solid rgba(255,255,255,.12);border-radius:.35rem;padding:.3rem .5rem;
+  font-variant-numeric:tabular-nums;width:7rem;outline:0}
+.knob input:focus,.knob select:focus{border-color:var(--primary)}
+.knob .note{font-size:12px;color:var(--foreground-dim);margin:.35rem 0 0}
+
+.rowbtns{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.8rem}
+.warnbox{border:1px solid rgba(244,176,55,.35);background:rgba(244,176,55,.06);border-radius:.45rem;
+  padding:.65rem .8rem;font-size:12.5px;color:var(--foreground-alt);margin-top:.8rem}
+.warnbox b{color:var(--warn)}
+.copybox{display:flex;align-items:center;gap:.6rem;margin-top:.7rem;background:var(--filling-alt2);
+  border:1px solid rgba(255,255,255,.08);border-radius:.45rem;padding:.55rem .7rem;
+  font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:12.5px;color:#d8c9a4}
+.copybox code{flex:1;min-width:0;overflow:auto;white-space:nowrap}
+
+/* trainer / bots command cards */
+.cmdgrid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}
+.cmdcard{background:var(--secondary);border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);
+  padding:.85rem .95rem;display:flex;flex-direction:column;gap:.5rem}
+.cmdcard h4{margin:0;font-size:14px;font-weight:600;display:flex;align-items:center;
+  justify-content:space-between;gap:.6rem}
+.cmdcard p{margin:0;font-size:12.5px;color:var(--foreground-dim)}
+.cmdcard .args{display:flex;flex-wrap:wrap;gap:.45rem}
+.cmdcard .args label{display:flex;flex-direction:column;gap:.15rem;font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--foreground-dim)}
+.cmdcard .args input,.cmdcard .args select{background:var(--secondary-alt0);
+  border:1px solid rgba(255,255,255,.12);border-radius:.35rem;padding:.3rem .45rem;
+  font-size:13px;min-width:6.5rem;outline:0;text-transform:none;letter-spacing:0}
+.cmdcard .args input:focus,.cmdcard .args select:focus{border-color:var(--primary)}
+.cmdcard .foot{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-top:auto}
+.mode{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:.1rem .35rem;
+  border-radius:.25rem;border:1px solid rgba(255,255,255,.16);color:var(--foreground-dim)}
+.mode.run{border-color:rgba(91,208,122,.5);color:var(--ok)}
+.mode.copy{border-color:rgba(201,170,113,.5);color:var(--primary)}
+
+/* ------------------------------------------------------------ reference */
+/* Virtualised because refdata.json holds ~100k rows; only the visible slice
+   is ever in the DOM, exactly as the old panel did it. */
+.refwrap{display:flex;flex-direction:column;height:calc(100vh - var(--nav-h) - 8.5rem);min-height:22rem}
+.reffilters{display:flex;flex-wrap:wrap;align-items:flex-end;gap:.7rem;margin-bottom:.7rem}
+.fgroup{display:flex;flex-direction:column;gap:.2rem;font-size:10.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--foreground-dim)}
+.fgroup select,.fgroup input{background:var(--secondary);border:1px solid rgba(255,255,255,.12);
+  border-radius:.35rem;padding:.3rem .5rem;font-size:13px;text-transform:none;letter-spacing:0;
+  color:var(--foreground);outline:0}
+.fgroup select:focus,.fgroup input:focus{border-color:var(--primary)}
+.rangewrap{display:flex;align-items:center;gap:.35rem}
+.rangewrap input{width:5.5rem}
+.rangewrap b{font-size:10px;color:var(--secondary-lighter)}
+.refcount{font-size:12.5px;color:var(--foreground-dim);margin:0 0 .5rem}
+.refcount b{color:var(--primary);font-variant-numeric:tabular-nums}
+#refviewport{flex:1;min-height:0;overflow:auto;background:var(--background-alt);
+  border:1px solid rgba(255,255,255,.07);border-radius:var(--radius);position:relative}
+#refrows{position:absolute;left:0;right:0;top:0;will-change:transform}
+.refrow{display:grid;grid-template-columns:5.5rem 1fr auto 11rem;align-items:center;gap:.8rem;
+  height:44px;padding:0 .9rem;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;
+  font-size:13.5px}
+.refrow:hover{background:var(--secondary)}
+.refrow.sel{background:rgba(201,170,113,.12)}
+.refrow .id{font-variant-numeric:tabular-nums;color:var(--secondary-lighter);font-size:12px}
+.refrow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.refrow .meta{display:flex;gap:.35rem;flex-wrap:nowrap;overflow:hidden}
+.refrow .cmd{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:11.5px;
+  color:var(--foreground-dim);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rchip{font-size:10px;font-weight:600;letter-spacing:.04em;padding:.05rem .35rem;border-radius:.25rem;
+  border:1px solid rgba(255,255,255,.12);color:var(--foreground-dim);white-space:nowrap}
+.rchip.num{font-variant-numeric:tabular-nums}
+.refcmds{padding:.9rem;display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))}
+.refcmd{background:var(--secondary);border:1px solid rgba(255,255,255,.07);border-radius:.5rem;
+  padding:.7rem .85rem}
+.refcmd .h{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.refcmd .nm{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:13px;
+  color:var(--primary);cursor:pointer}
+.refcmd p{margin:.35rem 0 0;font-size:12.5px;color:var(--foreground-dim)}
+.sec{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;padding:.1rem .35rem;
+  border-radius:.25rem;border:1px solid rgba(255,255,255,.16);color:var(--foreground-dim)}
+.sec0{border-color:rgba(91,208,122,.45);color:var(--ok)}
+.sec1{border-color:rgba(201,170,113,.45);color:var(--primary)}
+.sec2{border-color:rgba(244,176,55,.45);color:var(--warn)}
+.sec3{border-color:rgba(224,85,85,.45);color:var(--bad)}
+/* item quality colours, Blizzard's own values */
+:root{--q0:#9d9d9d;--q1:#e8e8e8;--q2:#1eff00;--q3:#0070dd;--q4:#a335ee;--q5:#ff8000;
+  --q6:#e6cc80;--q7:#00ccff}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-in">
+    <div class="splash-mark">Azeroth</div>
+    <div class="spin-wrap">
+      <div class="spin"></div>
+      <div class="spark"></div><div class="spark"></div><div class="spark"></div>
+    </div>
+    <div class="splash-status" id="splashstatus">Contacting the hub&hellip;</div>
+  </div>
+</div>
+
+<div class="app">
+  <header class="nav">
+    <div class="brand"><b>Azeroth</b><span>Realm Launcher</span></div>
+    <nav class="navtabs" id="navtabs" role="tablist"></nav>
+    <div class="navright">
+      <span class="pill" id="hubpill"><span class="dot" id="hubdot"></span><span id="hubtext">offline</span></span>
+      <a class="ghost" href="/" title="The original Azeroth Control panel">Classic panel</a>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="rail">
+      <div class="railhead"><span class="eyebrow">Realms</span><span class="eyebrow" id="realmcount"></span></div>
+      <div class="railgroup" id="realmlist"></div>
+      <div class="railhead"><span class="eyebrow">Clients</span></div>
+      <div class="railgroup" id="clientlist"></div>
+    </aside>
+
+    <main class="main" id="main">
+      <section class="view on" id="view-play"></section>
+      <section class="view" id="view-addons"></section>
+      <section class="view" id="view-changelog"></section>
+      <section class="view" id="view-server"></section>
+      <section class="view" id="view-world"></section>
+      <section class="view" id="view-tools"></section>
+      <section class="view" id="view-reference"></section>
+      <section class="view" id="view-settings"></section>
+    </main>
+  </div>
+
+  <footer class="foot">
+    <div class="footinfo">
+      <div class="t" id="footname">&mdash;</div>
+      <div class="s" id="footstate"></div>
+    </div>
+    <div class="ctawrap">
+      <div class="stack" id="ctaextra"></div>
+      <button class="cta" id="cta" disabled>
+        <span class="ind" id="ctaicon"></span>
+        <span class="lbl"><b id="ctalabel">Loading</b><i id="ctasub">please wait</i></span>
+        <span class="fill" id="ctafill"></span>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ------------------------------------------------------------ helpers */
+var $ = function(id){ return document.getElementById(id); };
+function el(tag, cls, txt){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+}
+function esc(s){ return String(s == null ? '' : s); }
+var ICON = {
+  play:'M8 5v14l11-7z',
+  power:'M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A6.92 6.92 0 0 1 19 12a7 7 0 0 1-14 0c0-2.22 1.04-4.19 2.65-5.44L6.23 5.13A8.95 8.95 0 0 0 3 12a9 9 0 0 0 18 0c0-2.74-1.23-5.19-3.17-6.83z',
+  stop:'M6 6h12v12H6z',
+  gear:'M12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5m7.43-2.53a7.79 7.79 0 0 0 0-1.94l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.69-.98l-.38-2.65a.49.49 0 0 0-.49-.42h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.58-1.69.98l-2.49-1a.5.5 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65a7.93 7.93 0 0 0 0 1.94l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65a.49.49 0 0 0 .49.42h4a.49.49 0 0 0 .49-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1a.5.5 0 0 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64Z',
+  box:'M20 6h-2.18c.11-.31.18-.65.18-1a2.85 2.85 0 0 0-2.85-2.85c-.88 0-1.66.42-2.15 1.06L12 4l-1-1.79A2.83 2.83 0 0 0 8.85 2.15 2.85 2.85 0 0 0 6 5c0 .35.07.69.18 1H4a2 2 0 0 0-2 2v2h20V8a2 2 0 0 0-2-2M4 20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9H4v9Z',
+  news:'M20 3H4C2.89 3 2 3.89 2 5v14c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2M5 7h5v6H5V7m14 10H5v-2h14v2m0-4h-7v-2h7v2m0-4h-7V7h7v2Z',
+  search:'M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z',
+  check:'M9 20.42l-6.21-6.21 2.83-2.83L9 14.77l9.88-9.89 2.83 2.83L9 20.42z',
+  server:'M3 4h18v5H3V4m0 7h18v5H3v-5m0 7h18v3H3v-3Z',
+  world:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m0 2c1.5 0 2.9.4 4.1 1.2H7.9A7.9 7.9 0 0 1 12 4M5.3 7h13.4c.5.9.9 1.9 1.1 3H4.2c.2-1.1.6-2.1 1.1-3M4 12h16c0 1.1-.2 2.1-.6 3H4.6c-.4-.9-.6-1.9-.6-3m1.9 5h12.2c-1.4 1.9-3.6 3-6.1 3s-4.7-1.1-6.1-3Z',
+  tools:'M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.4-.4.4-1 .1-1.4Z',
+  book:'M12 21.5c-1.35-.85-3.8-1.5-5.5-1.5-1.65 0-3.35.3-4.75 1.05-.1.05-.15.05-.25.05-.25 0-.5-.25-.5-.5V6c.6-.45 1.25-.75 2-1 1.11-.35 2.33-.5 3.5-.5 1.95 0 4.05.4 5.5 1.5 1.45-1.1 3.55-1.5 5.5-1.5 1.17 0 2.39.15 3.5.5.75.25 1.4.55 2 1v14.6c0 .25-.25.5-.5.5-.1 0-.15 0-.25-.05-1.4-.75-3.1-1.05-4.75-1.05-1.7 0-4.15.65-5.5 1.5Z'
+};
+function svg(path, cls){
+  var s = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  s.setAttribute('viewBox','0 0 24 24');
+  if (cls) s.setAttribute('class', cls);
+  var p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', path);
+  s.appendChild(p);
+  return s;
+}
+var toastTimer = null;
+function toast(msg, bad){
+  var t = $('toast');
+  t.textContent = msg;
+  t.className = 'on' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.className = ''; }, bad ? 7000 : 3800);
+}
+function api(path, body){
+  var opt = body === undefined ? {} :
+    {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body||{})};
+  return fetch(path, opt).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(j){
+      j._status = r.status; return j;
+    });
+  });
+}
+function logLines(list){
+  var box = el('div','log');
+  box.textContent = (list||[]).join('\n');
+  return box;
+}
+function bytes(n){
+  if (!n && n !== 0) return '-';
+  var u = ['B','KB','MB','GB','TB'], i = 0;
+  while (n >= 1024 && i < u.length-1){ n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + ' ' + u[i];
+}
+
+/* -------------------------------------------------------------- state */
+var S = {
+  products: [], byslug: {}, sel: null, view: 'play',
+  modules: null, changelog: {}, settings: {}, disk: null,
+  job: null, es: null, filter: 'all', query: ''
+};
+
+/* `when` hides a tab for profiles it cannot mean anything for.  A client-only
+   entry, or a realm this panel does not manage, has no server to power, no
+   configs to tune and no GM console - showing it Server/World/Tools would only
+   offer buttons that refuse.  Reference is data built from the 3.3.5a client,
+   so it is always available. */
+var VIEWS = [
+  {id:'play',      label:'Play',      icon:ICON.play},
+  {id:'server',    label:'Server',    icon:ICON.server, when:managed},
+  {id:'world',     label:'World',     icon:ICON.world,  when:managed},
+  {id:'addons',    label:'Addons',    icon:ICON.box},
+  {id:'tools',     label:'Tools',     icon:ICON.tools,  when:managed},
+  {id:'reference', label:'Reference', icon:ICON.book},
+  {id:'changelog', label:'Changelog', icon:ICON.news},
+  {id:'settings',  label:'Settings',  icon:ICON.gear}
+];
+function managed(p){ return !!(p && p.serverManaged); }
+function visibleViews(){
+  var p = cur();
+  return VIEWS.filter(function(v){ return !v.when || v.when(p); });
+}
+
+function cur(){ return S.byslug[S.sel] || null; }
+
+/* --------------------------------------------------------------- nav */
+function renderNav(){
+  var n = $('navtabs');
+  n.innerHTML = '';
+  visibleViews().forEach(function(v){
+    var b = el('button','navtab');
+    b.type = 'button';
+    b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', S.view === v.id ? 'true' : 'false');
+    b.appendChild(svg(v.icon));
+    b.appendChild(el('i', null, v.label));
+    b.querySelector('i').style.fontStyle = 'normal';
+    b.onclick = function(){ setView(v.id); };
+    n.appendChild(b);
+  });
+}
+function setView(id){
+  S.view = id;
+  VIEWS.forEach(function(v){ $('view-' + v.id).classList.toggle('on', v.id === id); });
+  $('main').scrollTop = 0;
+  renderNav();
+  render();
+  // Ported views read live config; re-pull on entry so a value changed in the
+  // other panel, or by hand, is not shown stale.
+  var p = cur();
+  if (p && (id === 'server' || id === 'world' || id === 'tools'))
+    loadPanel(p.slug).then(function(){ VSIG[id] = null; render(); });
+}
+
+/* -------------------------------------------------------------- rail */
+function renderRail(){
+  var realms = $('realmlist'), clients = $('clientlist');
+  realms.innerHTML = ''; clients.innerHTML = '';
+  var nr = 0;
+  S.products.forEach(function(p){
+    var b = el('button','realm' + (p.installed ? '' : ' dim'));
+    b.type = 'button';
+    b.setAttribute('aria-current', p.slug === S.sel ? 'true' : 'false');
+    var crest = el('div','crest', (p.name || p.slug).charAt(0).toUpperCase());
+    crest.style.setProperty('--a', p.accent || '#c9aa71');
+    b.appendChild(crest);
+    var t = el('div','rt');
+    t.appendChild(el('div','rn', p.name));
+    var sub = p.installed ? (p.serverUp ? 'running' : (p.active ? 'active' : 'installed'))
+                          : (p.status === 'planned' ? 'not installed' : p.status);
+    t.appendChild(el('div','rs', sub));
+    b.appendChild(t);
+    if (p.serverUp) { var d = el('span','dot on'); b.appendChild(d); }
+    b.onclick = function(){ select(p.slug); };
+    if (p.kind === 'client') clients.appendChild(b);
+    else { realms.appendChild(b); nr++; }
+  });
+  $('realmcount').textContent = nr;
+}
+
+function select(slug){
+  if (S.sel === slug) return;
+  S.sel = slug;
+  S.query = ''; S.filter = 'all';
+  refInvalidate();
+  renderRail();
+  loadForSelection();
+  render();
+}
+
+/* --------------------------------------------------------------- hero */
+function heroFor(p){
+  var h = el('div','hero');
+  h.style.setProperty('--a', p.accent || '#c9aa71');
+  h.appendChild(el('div','art'));
+  var inner = el('div','inner');
+  inner.appendChild(el('div','eyebrow', p.kind === 'client' ? 'Alternate client' : 'Realm'));
+  inner.appendChild(el('h1','display', p.name));
+  inner.appendChild(el('p', null, p.tagline || ''));
+  var badges = el('div','badges');
+  function badge(txt, cls){ badges.appendChild(el('span','badge' + (cls ? ' ' + cls : ''), txt)); }
+  var b = p.builder || {};
+  badge('Max level ' + (b.max_level || '?'), 'gold');
+  if (b.draft) badge('Draft', 'hot');
+  if (b.architect) badge('Architect', 'hot');
+  if (b.coa) badge('Conquest of Azeroth', 'hot');
+  if (!b.draft && !b.architect && !b.coa) badge('Classic talents');
+  if (p.sharesRealm) badge('Uses the ' + p.sharesRealm + ' realm');
+  badge(p.installed ? 'Installed' : 'Not installed', p.installed ? '' : 'hot');
+  inner.appendChild(badges);
+  h.appendChild(inner);
+  return h;
+}
+
+/* --------------------------------------------------------------- play */
+function renderPlay(){
+  var v = $('view-play'), p = cur();
+  v.innerHTML = '';
+  if (!p) { v.appendChild(el('div','empty','No realms configured.')); return; }
+  v.appendChild(heroFor(p));
+
+  var w = el('div','wrap');
+  var g = el('div','grid cols');
+
+  var c1 = el('div','card');
+  c1.appendChild(el('h3', null, 'Realm status'));
+  var st = S.settings[p.slug] || {};
+  function row(k, val, dotcls){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', k));
+    var vv = el('span','v');
+    if (dotcls) vv.appendChild(el('span','dot ' + dotcls));
+    vv.appendChild(el('span', null, val));
+    r.appendChild(vv);
+    c1.appendChild(r);
+  }
+  var hub = S.hub || {};
+  row('World server', p.serverUp ? (p.ready ? 'ready' : 'starting') : 'stopped',
+      p.serverUp ? (p.ready ? 'on' : 'warn') : 'off');
+  row('Auth server', (hub.authserver && hub.authserver.up) ? 'up' : 'down',
+      (hub.authserver && hub.authserver.up) ? 'on' : 'off');
+  row('Active realm', hub.activeRealm || '-', p.active ? 'on' : '');
+  if (st.phase) row('Progression phase', st.phase);
+  c1.appendChild(el('div','stat'));
+  g.appendChild(c1);
+
+  var c2 = el('div','card');
+  c2.appendChild(el('h3', null, 'This build'));
+  var s = st.settings || {};
+  /* Only the rows this realm actually has a config for.  product_settings()
+     omits a key whose file is absent, and printing "?" for it reads as a broken
+     realm rather than one that simply does not run bots or an LLM. */
+  var rows = [];
+  if (s.MinRandomBots !== undefined || s.MaxRandomBots !== undefined)
+    rows.push(['Bots (min/max)', (s.MinRandomBots||'?') + ' / ' + (s.MaxRandomBots||'?')]);
+  if (s.RandomBotMaxLevel !== undefined) rows.push(['Bot level cap', s.RandomBotMaxLevel]);
+  if (s.PlayerSaveInterval !== undefined)
+    rows.push(['Save interval', Math.round(s.PlayerSaveInterval/60000) + ' min']);
+  if (s.OllamaModel !== undefined) rows.push(['Chat model', s.OllamaModel]);
+  if (rows.length){
+    rows.forEach(function(pair){
+      var r = el('div','stat');
+      r.appendChild(el('span','k', pair[0]));
+      r.appendChild(el('span','v', String(pair[1])));
+      c2.appendChild(r);
+    });
+  } else {
+    c2.appendChild(el('div','empty','No live configs for this profile yet.'));
+  }
+  g.appendChild(c2);
+
+  var c3 = el('div','card');
+  c3.appendChild(el('h3', null, 'Addons'));
+  var m = S.modules;
+  if (m && m.slug === p.slug && m.actionable){
+    var r1 = el('div','stat');
+    r1.appendChild(el('span','k','Installed'));
+    r1.appendChild(el('span','v', m.installed + ' of ' + m.count));
+    c3.appendChild(r1);
+    var r2 = el('div','stat');
+    r2.appendChild(el('span','k','Hand-added folders'));
+    r2.appendChild(el('span','v', String((m.foreign||[]).length)));
+    c3.appendChild(r2);
+    var go = el('button','mini','Manage addons');
+    go.style.marginTop = '.7rem';
+    go.onclick = function(){ setView('addons'); };
+    c3.appendChild(go);
+  } else {
+    c3.appendChild(el('div','empty','Addon management is not wired for this profile.'));
+  }
+  g.appendChild(c3);
+  w.appendChild(g);
+
+  if (!p.installed){
+    var note = el('div','card');
+    note.style.marginTop = '1rem';
+    note.appendChild(el('h3', null, 'Not installed yet'));
+    note.appendChild(el('p', null, p.notes || ''));
+    if ((p.requires||[]).length){
+      var ul = el('ul');
+      p.requires.forEach(function(x){ ul.appendChild(el('li', null, x)); });
+      note.appendChild(ul);
+    }
+    w.appendChild(note);
+  }
+
+  var cl = S.changelog[p.slug];
+  if (cl && cl.entries && cl.entries.length){
+    var head = el('div','sectionhead');
+    head.appendChild(el('h2','display','Latest changes'));
+    var all = el('button','mini','View all');
+    all.onclick = function(){ setView('changelog'); };
+    head.appendChild(all);
+    w.appendChild(head);
+    cl.entries.slice(0,3).forEach(function(e){ w.appendChild(entryNode(e, true)); });
+  }
+
+  if (S.job && S.job.log && S.job.log.length){
+    var lh = el('div','sectionhead');
+    lh.appendChild(el('h2','display','Last action'));
+    w.appendChild(lh);
+    w.appendChild(logLines(S.job.log));
+  }
+  v.appendChild(w);
+}
+
+/* ------------------------------------------------------------- addons */
+function renderAddons(){
+  var v = $('view-addons'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.appendChild(el('h2','display','Addons'));
+  w.appendChild(head);
+
+  var m = S.modules;
+  if (!m || m.slug !== p.slug){
+    w.appendChild(el('div','empty','Loading addon catalog…'));
+    v.appendChild(w); return;
+  }
+  if (m.error){ w.appendChild(el('div','empty', m.error)); v.appendChild(w); return; }
+
+  var bar = el('div','toolbar');
+  var sb = el('div','search');
+  sb.appendChild(svg(ICON.search));
+  var inp = document.createElement('input');
+  inp.type = 'search'; inp.placeholder = 'Search ' + m.count + ' addons…';
+  inp.value = S.query; inp.autocomplete = 'off';
+  inp.oninput = function(){ S.query = inp.value; paintGroups(); };
+  sb.appendChild(inp);
+  bar.appendChild(sb);
+  [['all','All'],['installed','Installed'],['disabled','Disabled'],['recommended','Recommended']]
+    .forEach(function(f){
+      var c = el('button','chip', f[1]);
+      c.type = 'button';
+      c.setAttribute('aria-pressed', S.filter === f[0] ? 'true' : 'false');
+      c.onclick = function(){ S.filter = f[0]; renderAddons(); };
+      bar.appendChild(c);
+    });
+  w.appendChild(bar);
+
+  if (!m.actionable){
+    var warn = el('div','card');
+    warn.style.marginBottom = '1rem';
+    warn.appendChild(el('p', null,
+      'Browsing only: installs are wired to the vanilla client (' + (m.addonsDir||'?') + ').'));
+    w.appendChild(warn);
+  }
+
+  var groups = el('div');
+  groups.id = 'addongroups';
+  w.appendChild(groups);
+  v.appendChild(w);
+  paintGroups();
+}
+
+function matchAddon(a){
+  if (S.filter === 'installed' && !a.installed) return false;
+  if (S.filter === 'disabled' && !a.disabled) return false;
+  if (S.filter === 'recommended' && !a.recommended) return false;
+  if (!S.query) return true;
+  var q = S.query.toLowerCase();
+  return (a.name||'').toLowerCase().indexOf(q) >= 0 ||
+         (a.desc||'').toLowerCase().indexOf(q) >= 0;
+}
+
+function paintGroups(){
+  var host = $('addongroups');
+  if (!host) return;
+  var m = S.modules;
+  host.innerHTML = '';
+  var shown = 0;
+  (m.categories||[]).forEach(function(cat){
+    var list = cat.addons.filter(matchAddon);
+    if (!list.length) return;
+    shown += list.length;
+    var g = el('div','catgroup');
+    var cb = el('div','catbar');
+    cb.appendChild(el('h3', null, cat.name));
+    cb.appendChild(el('span','n', list.length + (list.length === cat.addons.length ? '' :
+      ' of ' + cat.addons.length)));
+    g.appendChild(cb);
+    list.forEach(function(a){ g.appendChild(addonRow(a, m.actionable)); });
+    host.appendChild(g);
+  });
+  if (!shown) host.appendChild(el('div','empty','Nothing matches that filter.'));
+}
+
+function addonRow(a, actionable){
+  var row = el('div','addon' + (a.installed ? ' ins' : '') + (a.disabled ? ' dis' : ''));
+  var ic = el('div','icon');
+  if (a.installed && !a.disabled) ic.appendChild(svg(ICON.check));
+  else ic.textContent = (a.name||'?').charAt(0).toUpperCase();
+  row.appendChild(ic);
+
+  var meta = el('div','meta');
+  var nm = el('div','nm');
+  nm.appendChild(el('span', null, a.name));
+  if (a.recommended) nm.appendChild(el('span','tag rec','Rec'));
+  if (a.disabled) nm.appendChild(el('span','tag warn','Disabled'));
+  if (a.interface && a.interface !== '30300')
+    nm.appendChild(el('span','tag warn','iface ' + a.interface));
+  meta.appendChild(nm);
+  meta.appendChild(el('div','ds', (a.desc||'') + (a.size ? '  ·  ' + bytes(a.size) : '')));
+  row.appendChild(meta);
+
+  var acts = el('div','acts');
+  // Address the profile these rows were built for.  Omitting it let the backend
+  // fall back to profiles.json's activeRealm, so toggling an addon while viewing
+  // vanilla was aimed at whichever realm happened to be live.
+  var mslug = (S.modules && S.modules.slug) || S.sel;
+  if (a.installed){
+    // Toggle = /v1/modules/replace: sideline or restore the folder, never delete.
+    var sw = el('button','sw');
+    sw.type = 'button';
+    sw.setAttribute('role','switch');
+    sw.setAttribute('aria-checked', a.disabled ? 'false' : 'true');
+    sw.setAttribute('aria-label', (a.disabled ? 'Enable ' : 'Disable ') + a.name);
+    sw.disabled = !actionable;
+    sw.onclick = function(){
+      sw.disabled = true;
+      api('/v1/modules/replace', {name:a.name, enabled:!!a.disabled, slug:mslug}).then(function(r){
+        toast((r.log||[]).join(' · '), !r.ok);
+        return refreshModules();
+      });
+    };
+    acts.appendChild(sw);
+    var rm = el('button','mini danger','Remove');
+    rm.disabled = !actionable;
+    rm.onclick = function(){
+      rm.disabled = true; rm.textContent = 'Removing…';
+      api('/v1/modules/remove', {name:a.name, slug:mslug}).then(function(r){
+        toast((r.log||[]).join(' · '), !r.ok);
+        return refreshModules();
+      });
+    };
+    acts.appendChild(rm);
+  } else {
+    var ins = el('button','mini','Install');
+    ins.disabled = !actionable;
+    ins.onclick = function(){
+      ins.disabled = true; ins.textContent = 'Installing…';
+      api('/v1/modules/add', {name:a.name, slug:mslug}).then(function(r){
+        toast((r.log||[]).join(' · '), !r.ok);
+        return refreshModules();
+      });
+    };
+    acts.appendChild(ins);
+  }
+  row.appendChild(acts);
+  return row;
+}
+
+function refreshModules(){
+  var p = cur();
+  if (!p) return Promise.resolve();
+  return api('/v1/modules?slug=' + encodeURIComponent(p.slug)).then(function(m){
+    S.modules = m;
+    if (S.view === 'addons') paintGroups(); else render();
+  });
+}
+
+/* ---------------------------------------------------------- changelog */
+function entryNode(e, compact){
+  var n = el('div','entry');
+  var m = el('div','m');
+  m.appendChild(el('span','kind ' + (e.kind||''), e.kind || 'change'));
+  m.appendChild(el('span','eyebrow', e.date || ''));
+  if (e.needsBackfill) m.appendChild(el('span','tag warn','needs backfill'));
+  (e.tags||[]).forEach(function(t){ m.appendChild(el('span','tag', t)); });
+  n.appendChild(m);
+  var h = el('h3');
+  h.id = 'cl-' + (e.id || '');
+  h.textContent = e.title || '(untitled)';
+  n.appendChild(h);
+  if (e.summary) n.appendChild(el('div','sum', e.summary));
+  if (!compact && (e.body||[]).length){
+    var ul = el('ul');
+    e.body.forEach(function(b){ ul.appendChild(el('li', null, b)); });
+    n.appendChild(ul);
+  }
+  if (!compact && (e.evidence||[]).length){
+    n.appendChild(el('div','ev', 'evidence: ' + e.evidence.join('  ·  ')));
+  }
+  return n;
+}
+
+function renderChangelog(){
+  var v = $('view-changelog'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.appendChild(el('h2','display', p.name + ' — changelog'));
+  w.appendChild(head);
+
+  var cl = S.changelog[p.slug];
+  if (!cl){ w.appendChild(el('div','empty','Loading…')); v.appendChild(w); return; }
+  if (cl.note){
+    var note = el('div','card');
+    note.style.marginBottom = '1.2rem';
+    note.appendChild(el('h3', null, 'About this log'));
+    note.appendChild(el('p', null, cl.note));
+    w.appendChild(note);
+  }
+  if (!(cl.entries||[]).length){
+    w.appendChild(el('div','empty','No entries yet. Drop them into realms/changelog/' + p.slug + '.json.'));
+    v.appendChild(w); return;
+  }
+
+  var grid = el('div','clog');
+  var nav = el('nav','clognav');
+  var col = el('div');
+  cl.entries.forEach(function(e, i){
+    var a = el('a', i === 0 ? 'on' : '');
+    a.href = '#cl-' + (e.id || i);
+    a.appendChild(el('span','d', (e.date||'').slice(5)));
+    a.appendChild(el('span', null, e.title || ''));
+    a.onclick = function(){
+      nav.querySelectorAll('a').forEach(function(x){ x.classList.remove('on'); });
+      a.classList.add('on');
+    };
+    nav.appendChild(a);
+    col.appendChild(entryNode(e, false));
+  });
+  grid.appendChild(nav);
+  grid.appendChild(col);
+  w.appendChild(grid);
+  v.appendChild(w);
+}
+
+/* ----------------------------------------------------------- settings */
+function renderSettings(){
+  var v = $('view-settings'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.appendChild(el('h2','display','Settings — ' + p.name));
+  w.appendChild(head);
+
+  var g = el('div','grid cols');
+
+  var c1 = el('div','card');
+  c1.appendChild(el('h3', null, 'Profile'));
+  [['Slug', p.slug], ['Kind', p.kind], ['Status', p.status],
+   ['Server managed', p.serverManaged ? 'yes' : 'no'],
+   ['Max level', (p.builder||{}).max_level || '?']].forEach(function(pair){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', pair[0]));
+    r.appendChild(el('span','v', String(pair[1])));
+    c1.appendChild(r);
+  });
+  g.appendChild(c1);
+
+  var c2 = el('div','card');
+  c2.appendChild(el('h3', null, 'Paths'));
+  var d = S.detail && S.detail.slug === p.slug ? S.detail : null;
+  if (d){
+    Object.keys(d.paths||{}).forEach(function(k){
+      var r = el('div','stat');
+      r.appendChild(el('span','k', k));
+      var vv = el('span','v');
+      vv.appendChild(el('span','dot ' + (d.pathsExist[k] ? 'on' : 'off')));
+      vv.appendChild(el('span', null, (d.paths[k]||'').replace(/^.*[\\\/]([^\\\/]+[\\\/][^\\\/]+)$/, '…$1')));
+      r.appendChild(vv);
+      c2.appendChild(r);
+    });
+  } else { c2.appendChild(el('div','empty','Loading…')); }
+  g.appendChild(c2);
+
+  var c3 = el('div','card');
+  c3.appendChild(el('h3', null, 'Maintenance'));
+  var disk = S.disk && S.disk.volumes && S.disk.volumes[0];
+  if (disk){
+    var r = el('div','stat');
+    r.appendChild(el('span','k','Free disk'));
+    r.appendChild(el('span','v', bytes(disk.free) + ' of ' + bytes(disk.total)));
+    c3.appendChild(r);
+  }
+  var cc = el('button','mini','Clear client cache');
+  cc.style.marginTop = '.7rem';
+  cc.onclick = function(){
+    cc.disabled = true; cc.textContent = 'Clearing…';
+    api('/v1/products/' + p.slug + '/clear_cache', {includeWdb:false}).then(function(r){
+      toast((r.log||[]).join(' · '), !r.ok);
+      cc.disabled = false; cc.textContent = 'Clear client cache';
+    });
+  };
+  c3.appendChild(cc);
+  c3.appendChild(el('p', null,
+    'WDB (item and creature caches) is kept — clearing it makes AtlasLoot report unsafe items until the client rebuilds it.'))
+    .style.fontSize = '12px';
+  g.appendChild(c3);
+
+  w.appendChild(g);
+
+  if (p.notes){
+    var n = el('div','card');
+    n.style.marginTop = '1rem';
+    n.appendChild(el('h3', null, 'Notes'));
+    n.appendChild(el('p', null, p.notes));
+    w.appendChild(n);
+  }
+  v.appendChild(w);
+}
+
+/* ---------------------------------------------------------------- CTA */
+function ctaState(){
+  var p = cur();
+  if (!p) return {label:'No realm', sub:'nothing selected', icon:ICON.power, disabled:true};
+  if (S.job && S.job.state === 'running')
+    return {label: S.job.action === 'stop' ? 'Stopping'
+                 : S.job.action === 'switch' ? 'Switching' : 'Starting',
+            sub: S.job.step || '', icon:ICON.power, disabled:true, busy:true,
+            pct: S.job.pct || 0};
+  if (!p.installed)
+    return {label:'Unavailable', sub:'not installed', icon:ICON.power, disabled:true};
+  if (p.kind === 'client')
+    return {label:'Play', sub: p.serverUp ? 'realm is up' : 'start a realm first',
+            icon:ICON.play, disabled:false, act:'launch'};
+  if (!p.active){
+    var h = S.hub || {}, busyRealm = !!(h.worldserver && h.worldserver.up);
+    var from = (S.byslug[h.activeRealm] || {}).name || h.activeRealm || 'the running realm';
+    return {label: busyRealm ? 'Switch to this realm' : 'Start realm',
+            sub: busyRealm ? 'stops ' + from + ' first - characters are saved'
+                           : 'makes this the active realm',
+            icon:ICON.power, disabled:false, act:'switch'};
+  }
+  if (!p.serverUp)
+    return {label:'Start realm', sub:'mysql, auth, world', icon:ICON.power,
+            disabled:false, act:'start'};
+  if (!p.ready)
+    return {label:'Loading world', sub:'maps still loading', icon:ICON.power,
+            disabled:true, busy:true, pct:80};
+  return {label:'Play', sub:'realm is ready', icon:ICON.play, disabled:false, act:'launch'};
+}
+
+function renderCTA(){
+  var p = cur(), s = ctaState();
+  $('footname').textContent = p ? p.name : '—';
+  var fs = $('footstate');
+  fs.innerHTML = '';
+  if (p){
+    var hub = S.hub || {};
+    [['World', p.serverUp ? (p.ready ? 'ready' : 'loading') : 'stopped',
+      p.serverUp ? (p.ready ? 'on' : 'warn') : 'off'],
+     ['Auth', (hub.authserver && hub.authserver.up) ? 'up' : 'down',
+      (hub.authserver && hub.authserver.up) ? 'on' : 'off'],
+     ['Active', hub.activeRealm || '—', p.active ? 'on' : '']
+    ].forEach(function(t){
+      var sp = el('span');
+      sp.appendChild(el('span','dot ' + t[2]));
+      sp.appendChild(el('span', null, t[0] + ': ' + t[1]));
+      fs.appendChild(sp);
+    });
+  }
+
+  var btn = $('cta');
+  btn.disabled = !!s.disabled;
+  btn.classList.toggle('busy', !!s.busy);
+  $('ctalabel').textContent = s.label;
+  $('ctasub').textContent = s.sub;
+  $('ctaicon').innerHTML = '';
+  $('ctaicon').appendChild(svg(s.icon));
+  $('ctafill').style.width = (s.busy ? (s.pct || 0) : 0) + '%';
+  btn.onclick = function(){ doAction(s.act); };
+
+  var extra = $('ctaextra');
+  extra.innerHTML = '';
+  if (p && p.serverManaged && p.active && p.serverUp && !(S.job && S.job.state === 'running')){
+    var stop = el('button','mini danger','Stop');
+    stop.onclick = function(){ doAction('stop'); };
+    extra.appendChild(stop);
+    var rs = el('button','mini','Restart');
+    rs.onclick = function(){ doAction('restart'); };
+    extra.appendChild(rs);
+  }
+}
+
+function doAction(act){
+  var p = cur();
+  if (!p || !act) return;
+  if (act === 'launch'){
+    api('/v1/launch/' + p.slug, {}).then(function(r){
+      toast((r.log||[]).join(' · '), !r.ok);
+    });
+    return;
+  }
+  api('/v1/patch/' + p.slug, {action:act}).then(function(r){
+    if (!r.ok){ toast((r.log||['failed']).join(' · '), true); return; }
+    watchJob(p.slug, r.job);
+  });
+}
+
+/* Live progress. SSE stands in for the daemon's websocket; a poll is kept as
+   the fallback because EventSource gives up silently on some proxies. */
+function watchJob(slug, jobId){
+  if (S.es){ S.es.close(); S.es = null; }
+  var url = '/v1/patch/' + slug + '/state/stream' + (jobId ? '?job=' + jobId : '');
+  try {
+    var es = new EventSource(url);
+    S.es = es;
+    es.onmessage = function(ev){
+      try { S.job = JSON.parse(ev.data); } catch(e){ return; }
+      renderCTA();
+      renderCurrentView();
+      if (S.job.state === 'done' || S.job.state === 'failed'){
+        es.close(); S.es = null;
+        toast(S.job.action + ' ' + S.job.state, S.job.state === 'failed');
+        var pp = cur();
+        if (pp) loadPanel(pp.slug).then(function(){ VSIG = {}; refresh(); });
+        else refresh();
+      }
+    };
+    es.onerror = function(){ es.close(); S.es = null; pollJob(slug, jobId); };
+  } catch(e){ pollJob(slug, jobId); }
+}
+function pollJob(slug, jobId){
+  var url = '/v1/patch/' + slug + '/state' + (jobId ? '?job=' + jobId : '');
+  api(url).then(function(j){
+    S.job = j;
+    renderCTA();
+    renderCurrentView();
+    if (j.state === 'running') setTimeout(function(){ pollJob(slug, jobId); }, 900);
+    else {
+      var pp = cur();
+      if (pp) loadPanel(pp.slug).then(function(){ VSIG = {}; refresh(); });
+      else refresh();
+    }
+  });
+}
+
+/* --------------------------------------------------------------- load */
+/* A view is only rebuilt when something it shows actually changed.  The 5s
+   status poll calls render(), and a blind rebuild would wipe a half-typed rate
+   or reset a slider mid-drag. */
+/* A repaint replaces the whole pane, so it takes the caret with it.  These are
+   the field types that have one worth keeping; a slider, a checkbox or a button
+   holding focus is not a reason to hold anything back. */
+var CARET_TYPES = { text:1, search:1, number:1, password:1, email:1, url:1,
+                    tel:1, date:1, time:1, month:1, week:1 };
+var RPEND = false;
+function editing(){
+  var a = document.activeElement;
+  if (!a) return false;
+  var t = (a.tagName || '').toLowerCase();
+  if (t === 'textarea' || a.isContentEditable === true) return true;
+  if (t !== 'input') return false;
+  return CARET_TYPES[(a.type || 'text').toLowerCase()] === 1;
+}
+/* focusout fires before the next element takes focus, so let that settle: moving
+   from one box straight to another should not repaint either of them. */
+document.addEventListener('focusout', function(){
+  setTimeout(function(){ if (RPEND && !editing()) renderCurrentView(); }, 0);
+});
+
+var VSIG = {};
+function paint(id, fn, signature){
+  if (VSIG[id] === signature && $('view-' + id).firstChild) return;
+  VSIG[id] = signature;
+  fn();
+}
+function sig(o){ try { return JSON.stringify(o); } catch(e){ return null; } }
+
+function renderCurrentView(){
+  // The 5s status poll and the job watcher both land here, and both would wipe a
+  // half-typed box. Hold the repaint while a field has the caret; the focusout
+  // handler above runs whatever was held.
+  if (editing()){ RPEND = true; return; }
+  RPEND = false;
+  var p = cur(), j = S.job || {};
+  if (S.view === 'play') renderPlay();
+  else if (S.view === 'addons') renderAddons();
+  else if (S.view === 'changelog') renderChangelog();
+  else if (S.view === 'server')
+    paint('server', renderServer, sig([PSTATE.overview, PSTATE.settings,
+      PSTATE.log.length, j.state, j.step, p && p.serverUp, p && p.active]));
+  else if (S.view === 'world')
+    paint('world', renderWorld, sig([PSTATE.rates, PSTATE.busy]));
+  else if (S.view === 'tools')
+    paint('tools', renderTools, sig([PSTATE.trainer, PSTATE.bots, PSTATE.raid,
+      PSTATE.tool]));
+  else if (S.view === 'reference')
+    paint('reference', renderReference, sig([RF.cat, !!RF.data]));
+  else renderSettings();
+}
+
+function render(){
+  // A tab can stop applying when the selection changes (client profiles have no
+  // Server tab), so fall back rather than leaving a blank pane on screen.
+  if (!visibleViews().some(function(v){ return v.id === S.view; })){
+    S.view = 'play';
+    // setView() owns the .on class, so the fallback has to move it too - otherwise
+    // the hidden tab's pane stays on screen under the newly selected profile.
+    VIEWS.forEach(function(v){ $('view-' + v.id).classList.toggle('on', v.id === 'play'); });
+    $('main').scrollTop = 0;
+  }
+  // The tab strip itself depends on the selection, so it is rebuilt here rather
+  // than only on setView - otherwise picking a realm never reveals its tabs.
+  renderNav();
+  renderRail();
+  renderCurrentView();
+  renderCTA();
+}
+
+function loadForSelection(){
+  var p = cur();
+  if (!p) return Promise.resolve();
+  var slug = p.slug;
+  return Promise.all([
+    api('/v1/products/' + slug).then(function(d){ S.detail = d; }),
+    api('/v1/products/' + slug + '/settings').then(function(d){ S.settings[slug] = d || {}; }),
+    api('/v1/products/' + slug + '/changelog').then(function(d){ S.changelog[slug] = d; }),
+    api('/v1/modules?slug=' + encodeURIComponent(slug)).then(function(d){ S.modules = d; }),
+    loadPanel(slug)
+  ]).then(function(){ VSIG = {}; render(); });
+}
+
+function refresh(){
+  return api('/v1/products').then(function(d){
+    if (d._status && d._status >= 400) throw new Error('bad status');
+    S.hub = d;
+    S.products = d.products || [];
+    S.byslug = {};
+    S.products.forEach(function(p){ S.byslug[p.slug] = p; });
+    if (!S.sel || !S.byslug[S.sel]) S.sel = d.activeRealm || (S.products[0]||{}).slug;
+    $('hubdot').className = 'dot on';
+    $('hubtext').textContent = 'hub online';
+    render();
+    return d;
+  }).catch(function(){
+    $('hubdot').className = 'dot off';
+    $('hubtext').textContent = 'hub offline';
+  });
+}
+
+/* Deep links: ?realm=<slug>&view=<tab>&tool=<subtab>.
+
+   Applied AFTER the profile load, not at parse time - visibleViews() filters
+   the tab strip by the selected profile, so a view asked for before the rail
+   exists would be silently dropped.  Anything unknown is ignored rather than
+   erroring, which keeps a stale bookmark from landing on a blank page. */
+function deepLink(){
+  var q = {};
+  try {
+    (location.search || '').replace(/^\?/, '').split('&').forEach(function(kv){
+      if (!kv) return;
+      var i = kv.indexOf('=');
+      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
+      q[k] = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1));
+    });
+  } catch (e) { return; }
+  if (q.realm && S.byslug[q.realm]) select(q.realm);
+  if (q.tool) PSTATE.tool = q.tool;
+  if (q.view && visibleViews().some(function(v){ return v.id === q.view; }))
+    setView(q.view);
+  else
+    render();
+}
+
+function boot(){
+  renderNav();
+  $('splashstatus').textContent = 'Reading realm profiles…';
+  refresh().then(function(){
+    $('splashstatus').textContent = 'Loading catalog…';
+    return Promise.all([
+      loadForSelection(),
+      api('/v1/available-disk-space').then(function(d){ S.disk = d; })
+    ]);
+  }).then(function(){
+    // Resume a job that was already running when the page loaded.
+    var p = cur();
+    if (p) api('/v1/patch/' + p.slug + '/state').then(function(j){
+      if (j && j.state === 'running'){ S.job = j; watchJob(p.slug, j.id); }
+    });
+    deepLink();
+    setTimeout(function(){ $('splash').classList.add('gone'); }, 260);
+  }).catch(function(e){
+    $('splashstatus').textContent = 'Could not reach the hub on this port.';
+    setTimeout(function(){ $('splash').classList.add('gone'); }, 1600);
+  });
+  // Keep status honest without hammering: the panel is local, 5s is plenty.
+  setInterval(function(){ if (!S.es) refresh(); }, 5000);
+}
+
+
+/* ==================================================================
+   Ported control-panel views.
+
+   Everything below drives /v1/realm/<slug>/... - the realm-scoped
+   endpoints in panel.py.  The slug is always cur().slug, so which
+   files get written follows the realm selected in the rail rather
+   than whichever one the hub happens to have been built around.
+   ================================================================== */
+
+var PSTATE = {
+  overview: null, settings: null, rates: null, trainer: null, bots: null, raid: null,
+  log: [], forSlug: null, busy: {}, tool: 'trainer', logTimer: null
+};
+
+function hesc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function(m){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[m];
+  });
+}
+function num(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+function copyText(text){
+  var done = function(){ toast(text + '   copied'); };
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(done, function(){ copyFallback(text, done); });
+  else copyFallback(text, done);
+}
+function copyFallback(text, done){
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.setAttribute('readonly','');
+  ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); done(); }
+  catch(e){ toast('Press Ctrl+C: ' + text, true); }
+  document.body.removeChild(ta);
+}
+
+/* Load everything the ported views need for one realm.  Called on selection
+   change and after any action that could move a value. */
+function loadPanel(slug, only){
+  var want = only || ['overview','settings','rates','trainer','bots','raid','log'];
+  var jobs = [];
+  if (PSTATE.forSlug !== slug){
+    PSTATE.overview = PSTATE.settings = PSTATE.rates = null;
+    PSTATE.trainer = PSTATE.bots = PSTATE.raid = null;
+    PSTATE.log = [];
+    PSTATE.forSlug = slug;
+  }
+  function get(name, path, into){
+    if (want.indexOf(name) < 0) return;
+    jobs.push(api('/v1/realm/' + slug + '/' + path).then(function(d){
+      if (PSTATE.forSlug === slug) PSTATE[into] = d;
+    }, function(){}));
+  }
+  get('overview','overview','overview');
+  get('settings','settings','settings');
+  get('rates','rates','rates');
+  get('trainer','trainer','trainer');
+  get('bots','bots','bots');
+  get('raid','raid','raid');
+  if (want.indexOf('log') >= 0){
+    jobs.push(api('/v1/realm/' + slug + '/log?n=200').then(function(d){
+      if (PSTATE.forSlug === slug) PSTATE.log = (d && d.lines) || [];
+    }, function(){}));
+  }
+  return Promise.all(jobs);
+}
+
+function pdo(path, body, after){
+  var p = cur(); if (!p) return;
+  return api('/v1/realm/' + p.slug + '/' + path, body || {}).then(function(r){
+    toast((r.log || []).join(' · ') || 'done', !r.ok);
+    if (r.copy) copyText(r.copy);
+    if (after) after(r);
+    return r;
+  });
+}
+
+/* ------------------------------------------------------------- server */
+function renderServer(){
+  var v = $('view-server'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.appendChild(el('h2','display', 'Server — ' + p.name));
+  head.style.marginTop = '0';
+  w.appendChild(head);
+
+  var ov = PSTATE.overview || {};
+  var st = PSTATE.settings || {};
+  var g = el('div','grid cols');
+
+  /* --- processes --- */
+  var c1 = el('div','card');
+  c1.appendChild(el('h3', null, 'Processes'));
+  function stat(card, k, val, dotcls){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', k));
+    var vv = el('span','v');
+    if (dotcls) vv.appendChild(el('span','dot ' + dotcls));
+    vv.appendChild(el('span', null, String(val)));
+    r.appendChild(vv);
+    card.appendChild(r);
+    return r;
+  }
+  function proc(card, label, o){
+    var up = !!(o && o.up);
+    stat(card, label, up ? ((o.ram_mb ? o.ram_mb + ' MB' : 'up')) : 'stopped',
+         up ? 'on' : 'off');
+  }
+  proc(c1, 'MySQL', ov.mysql);
+  proc(c1, 'Auth server', ov.authserver);
+  proc(c1, 'World server', ov.worldserver);
+  stat(c1, 'World ready', ov.ready ? 'yes' : 'no', ov.ready ? 'on' : 'off');
+  proc(c1, 'Ollama', ov.ollama);
+  g.appendChild(c1);
+
+  /* --- population + ports --- */
+  var c2 = el('div','card');
+  c2.appendChild(el('h3', null, 'Realm'));
+  stat(c2, 'Active', ov.active ? 'yes' : 'no', ov.active ? 'on' : '');
+  var pop = ov.population || {};
+  stat(c2, 'Players online', pop.players == null ? '—' : pop.players);
+  stat(c2, 'Bots online', pop.bots == null ? '—' : pop.bots);
+  var ports = ov.ports || {};
+  if (Object.keys(ports).length){
+    stat(c2, 'Auth port 3724', ports.auth ? 'listening' : 'closed', ports.auth ? 'on' : 'off');
+    stat(c2, 'World port 8085', ports.world ? 'listening' : 'closed', ports.world ? 'on' : 'off');
+    stat(c2, 'SOAP port 7878', ports.soap ? 'listening' : 'closed', ports.soap ? 'on' : 'off');
+  }
+  g.appendChild(c2);
+
+  /* --- power --- */
+  var c3 = el('div','card');
+  c3.appendChild(el('h3', null, 'Power'));
+  var busy = !!(S.job && S.job.state === 'running');
+  var btns = el('div','rowbtns');
+  function pbtn(label, act, cls, enabled){
+    var b = el('button','mini' + (cls ? ' ' + cls : ''), label);
+    b.disabled = busy || !enabled;
+    b.onclick = function(){ doAction(act); };
+    btns.appendChild(b);
+  }
+  if (!p.serverManaged){
+    c3.appendChild(el('div','empty', p.name + ' does not manage a server.'));
+  } else if (!p.active){
+    pbtn('Switch to this realm', 'switch', '', true);
+    c3.appendChild(btns);
+    c3.appendChild(el('p', null,
+      'Switching stops ' + ((S.byslug[(S.hub||{}).activeRealm]||{}).name || 'the running realm')
+      + ' first; characters are saved before it goes down.')).style.fontSize = '12px';
+  } else {
+    pbtn('Start', 'start', '', !p.serverUp);
+    pbtn('Restart', 'restart', '', p.serverUp);
+    pbtn('Stop', 'stop', 'danger', p.serverUp);
+    c3.appendChild(btns);
+    if (busy && S.job)
+      c3.appendChild(el('p', null, (S.job.step || S.job.action) + '…')).style.fontSize = '12px';
+  }
+  g.appendChild(c3);
+  w.appendChild(g);
+
+  /* --- settings --- */
+  var sh = el('div','sectionhead');
+  sh.appendChild(el('h2','display','Settings'));
+  var loc = el('span','eyebrow', st.configDir || '');
+  sh.appendChild(loc);
+  w.appendChild(sh);
+
+  if (!st.configDirExists){
+    w.appendChild(el('div','empty', p.name + ' has no config directory on disk yet.'));
+  } else {
+    var sg = el('div','grid cols');
+    var sc = el('div','card');
+    sc.appendChild(el('h3', null, 'Tunables'));
+    (st.items || []).forEach(function(it){ sc.appendChild(knob(it)); });
+    if (!(st.items || []).length)
+      sc.appendChild(el('div','empty','Nothing tunable in this realm’s configs.'));
+    sg.appendChild(sc);
+
+    if ((st.missing || []).length){
+      var mc = el('div','card');
+      mc.appendChild(el('h3', null, 'Not applicable here'));
+      st.missing.forEach(function(m){
+        var r = el('div','stat');
+        r.appendChild(el('span','k', m.label));
+        r.appendChild(el('span','v', 'no ' + m.file));
+        mc.appendChild(r);
+      });
+      mc.appendChild(el('p', null,
+        'These belong to modules ' + p.name + ' does not run, so they are hidden '
+        + 'rather than shown editing another realm’s file.')).style.fontSize = '12px';
+      sg.appendChild(mc);
+    }
+
+    if ((st.phases || []).length){
+      var pc = el('div','card');
+      pc.appendChild(el('h3', null, 'Progression tier'));
+      pc.appendChild(el('p', null,
+        'Sets the bot level cap, the maps bots roam, and the auction house filters '
+        + 'together — they must agree or the lowest silently wins.'))
+        .style.fontSize = '12px';
+      var pb = el('div','rowbtns');
+      var LBL = {vanilla:'Vanilla (60)', tbc:'TBC (70)', wotlk:'WotLK (80)'};
+      st.phases.forEach(function(ph){
+        var b = el('button','mini', LBL[ph] || ph);
+        if (ph === st.phase){ b.style.borderColor = 'var(--primary)'; b.style.color = 'var(--primary)'; }
+        b.onclick = function(){
+          if (!confirm('Set the progression tier to ' + (LBL[ph] || ph) + '?')) return;
+          pdo('phase', {phase: ph}, function(){ loadPanel(p.slug, ['settings']).then(render); });
+        };
+        pb.appendChild(b);
+      });
+      pc.appendChild(pb);
+      sg.appendChild(pc);
+    }
+    w.appendChild(sg);
+  }
+
+  /* --- log --- */
+  var lh = el('div','sectionhead');
+  lh.appendChild(el('h2','display','World log'));
+  var rl = el('button','ghost','Refresh');
+  rl.onclick = function(){ loadPanel(p.slug, ['log']).then(render); };
+  lh.appendChild(rl);
+  w.appendChild(lh);
+  var box = el('div','log');
+  box.style.maxHeight = '22rem';
+  box.textContent = PSTATE.log.length ? PSTATE.log.join('\n') : 'No log lines yet.';
+  w.appendChild(box);
+  // Scroll to the newest line the way tail -f would leave it.
+  setTimeout(function(){ box.scrollTop = box.scrollHeight; }, 0);
+
+  v.appendChild(w);
+}
+
+/* Two different numbers, each kept in its own place:
+
+     the gold reading  = what the SERVER is on right now. It does not move while
+                         you drag, so the value you are tuning away from is never
+                         lost off the screen;
+     the box / slider  = what Save will write, pre-loaded with the value this
+                         build SHIPPED.
+
+   So a tuned knob opens reading gold 6 with 1 in the box: the world is running 6,
+   and one press of Save on an untouched box puts it back to stock. Resetting a
+   single setting is the case nobody can do from memory - the stock numbers live in
+   .conf.dist files nobody reads - and it is now one click. */
+function liveLabel(value, unit, tight){
+  if (value == null || value === '') return '—';
+  // A symbol belongs to its number ("1×"); a word trails it ("60000 ms").
+  return tight ? value + unit : String(value) + (unit ? ' ' + unit : '');
+}
+
+/* One settings row: slider plus an exact number box, because a save interval
+   of 900000 is not something anyone drags to accurately. */
+function knob(it){
+  var d = el('div','knob');
+  var h = el('div','kh');
+  h.appendChild(el('span','kn', it.label));
+  var val = el('span','kv');
+  h.appendChild(val);
+  d.appendChild(h);
+  var meta = it.confKey + '  ·  ' + it.file;
+  // Keep the default readable after you have typed over the box.
+  if (it.default != null) meta += '  ·  default ' + it.default;
+  d.appendChild(el('div','kf', meta));
+
+  var row = el('div','kr');
+  var rng = document.createElement('input');
+  rng.type = 'range';
+  rng.min = it.min; rng.max = it.max; rng.step = it.step || 1;
+  var box = document.createElement('input');
+  box.type = 'number';
+  box.min = it.min; box.max = it.max; box.step = it.step || 1;
+  // Falls back to the live value when a build ships no .dist to read.
+  var start = parseFloat(it.default != null ? it.default : it.value);
+  if (!isNaN(start)){ rng.value = start; box.value = start; }
+  val.textContent = liveLabel(it.value, it.unit);
+  rng.oninput = function(){ box.value = rng.value; };
+  box.oninput = function(){ rng.value = box.value; };
+  var save = el('button','mini','Save');
+  save.onclick = function(){
+    save.disabled = true;
+    pdo('setting', {key: it.key, value: box.value}, function(){
+      save.disabled = false;
+      var p = cur(); if (p) loadPanel(p.slug, ['settings']);
+    });
+  };
+  row.appendChild(rng); row.appendChild(box); row.appendChild(save);
+  d.appendChild(row);
+  return d;
+}
+
+/* -------------------------------------------------------------- world */
+function renderWorld(){
+  var v = $('view-world'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.style.marginTop = '0';
+  head.appendChild(el('h2','display','World — ' + p.name));
+  w.appendChild(head);
+
+  var R = PSTATE.rates;
+  if (!R){ w.appendChild(el('div','empty','Loading…')); v.appendChild(w); return; }
+  if (!(R.groups || []).length){
+    w.appendChild(el('div','empty', p.name + ' has no worldserver.conf to tune.'));
+    v.appendChild(w); return;
+  }
+  if (!R.active){
+    var note = el('div','warnbox');
+    note.appendChild(el('b', null, 'Not the active realm. '));
+    note.appendChild(document.createTextNode(
+      'Changes are written to ' + p.name + '’s own config and take effect the next '
+      + 'time it starts — nothing is applied to the world running now.'));
+    w.appendChild(note);
+  }
+
+  var g = el('div','grid cols');
+  R.groups.forEach(function(grp){
+    var c = el('div','card');
+    c.appendChild(el('h3', null, grp.name));
+    grp.items.forEach(function(it){ c.appendChild(rateKnob(it)); });
+    g.appendChild(c);
+  });
+  w.appendChild(g);
+
+  if ((R.missingFiles || []).length){
+    var mf = el('div','warnbox');
+    mf.appendChild(document.createTextNode(
+      'Hidden here because ' + p.name + ' does not have: ' + R.missingFiles.join(', ')));
+    w.appendChild(mf);
+  }
+
+  /* --- database-side knobs --- */
+  var dh = el('div','sectionhead');
+  dh.appendChild(el('h2','display','Loot & respawn'));
+  w.appendChild(dh);
+
+  var sur = R.surgery || {};
+  if (!sur.available){
+    var e = el('div','card');
+    e.appendChild(el('h3', null, 'Not offered for this realm'));
+    e.appendChild(el('p', null, sur.reason || 'unavailable')).style.fontSize = '13px';
+    w.appendChild(e);
+    v.appendChild(w);
+    return;
+  }
+
+  var dg = el('div','grid cols');
+
+  var qd = R.questDrops || {};
+  var qc = el('div','card');
+  qc.appendChild(el('h3', null, 'Quest drop chance'));
+  [['Rows flagged QuestRequired', qd.rows == null ? '—' : num(qd.rows)],
+   ['Average chance', qd.avg == null ? '—' : qd.avg + '%'],
+   ['Lowest chance', qd.min == null ? '—' : qd.min + '%'],
+   ['Backup taken', qd.backedUp ? 'yes' : 'no']].forEach(function(pair){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', pair[0]));
+    r.appendChild(el('span','v', String(pair[1])));
+    qc.appendChild(r);
+  });
+  var qb = el('div','rowbtns');
+  var b100 = el('button','mini', qd.at100 ? 'Already at 100%' : 'Set all to 100%');
+  b100.disabled = !!qd.at100 || !!PSTATE.busy.qd;
+  b100.onclick = function(){
+    if (!confirm('Set every quest-item drop to 100%?\n\nOriginal chances are backed up '
+                 + 'first, and Restore puts them back.')) return;
+    PSTATE.busy.qd = true; renderWorld();
+    pdo('questdrops', {action:'set100'}, function(){
+      PSTATE.busy.qd = false;
+      loadPanel(p.slug, ['rates']).then(render);
+    });
+  };
+  qb.appendChild(b100);
+  var brs = el('button','mini danger','Restore originals');
+  brs.disabled = !qd.backedUp || !!PSTATE.busy.qd;
+  brs.onclick = function(){
+    if (!confirm('Restore the original quest drop chances from the backup table?')) return;
+    PSTATE.busy.qd = true; renderWorld();
+    pdo('questdrops', {action:'restore'}, function(){
+      PSTATE.busy.qd = false;
+      loadPanel(p.slug, ['rates']).then(render);
+    });
+  };
+  qb.appendChild(brs);
+  qc.appendChild(qb);
+  qc.appendChild(el('p', null,
+    'Quest items have no Rate.* setting — their chance lives on the loot rows '
+    + 'themselves, so this edits the world database and reloads the loot tables.'))
+    .style.fontSize = '12px';
+  dg.appendChild(qc);
+
+  var sr = R.spawnRates || {};
+  var CATNAME = {quest:'Quest objects', nodes:'Herbs & mining nodes'};
+  Object.keys(sr.cats || {}).forEach(function(k){
+    var row = sr.cats[k];
+    var c = el('div','card');
+    c.appendChild(el('h3', null, CATNAME[k] || k));
+    [['Spawns', num(row.spawns)],
+     ['Average respawn now', row.avgNow + 's'],
+     ['Stock respawn', row.avgStock + 's']].forEach(function(pair){
+      var r = el('div','stat');
+      r.appendChild(el('span','k', pair[0]));
+      r.appendChild(el('span','v', String(pair[1])));
+      c.appendChild(r);
+    });
+    var d = el('div','knob');
+    var hh = el('div','kh');
+    hh.appendChild(el('span','kn','Respawn speed'));
+    var lv = el('span','kv', (row.speed || '1') + '×');
+    hh.appendChild(lv);
+    d.appendChild(hh);
+    var kr = el('div','kr');
+    var rg = document.createElement('input');
+    rg.type = 'range'; rg.min = 1; rg.max = 20; rg.step = 1;
+    rg.value = parseFloat(row.speed || 1) || 1;
+    rg.oninput = function(){ lv.textContent = rg.value + '×'; };
+    var ap = el('button','mini','Apply');
+    ap.disabled = !!PSTATE.busy[k];
+    ap.onclick = function(){
+      if (!confirm('Make ' + (CATNAME[k]||k).toLowerCase() + ' respawn ' + rg.value
+                   + '× faster?\n\nStock timings are snapshotted once, and every '
+                   + 'apply recomputes from that snapshot rather than compounding.')) return;
+      PSTATE.busy[k] = true; renderWorld();
+      pdo('spawnrates', {cat:k, speed: rg.value}, function(){
+        PSTATE.busy[k] = false;
+        loadPanel(p.slug, ['rates']).then(render);
+      });
+    };
+    kr.appendChild(rg); kr.appendChild(ap);
+    d.appendChild(kr);
+    d.appendChild(el('div','note','1× is stock. Scripted spawns are never touched.'));
+    c.appendChild(d);
+    dg.appendChild(c);
+  });
+  w.appendChild(dg);
+  if (sr.doomweedNow)
+    w.appendChild(el('p', null, 'Doom Weed respawn right now: ' + sr.doomweedNow + 's'))
+      .style.cssText = 'font-size:12px;color:var(--foreground-dim)';
+  v.appendChild(w);
+}
+
+function rateKnob(it){
+  var d = el('div','knob');
+  var h = el('div','kh');
+  h.appendChild(el('span','kn', it.label));
+  var val = el('span','kv');
+  h.appendChild(val);
+  d.appendChild(h);
+  /* Zero-width spaces after the dots so a key that has to wrap breaks at a
+     segment boundary rather than in the middle of a word. */
+  var meta = it.key.replace(/\./g, '.\u200B');
+  if (it.default != null) meta += '  ·  default ' + it.default;
+  d.appendChild(el('div','kf', meta));
+
+  var row = el('div','kr');
+  var box = document.createElement('input');
+  box.type = 'number';
+  box.min = it.min; box.max = it.max; box.step = (it.max <= 2 ? 0.05 : 0.1);
+  // Pre-loaded with stock, same as the settings knobs: gold reads what the world
+  // is on, the box reads what Save would write.
+  box.value = (it.default != null ? it.default : (it.value == null ? '' : it.value));
+  val.textContent = liveLabel(it.value, '×', true);
+  var save = el('button','mini','Save');
+  save.onclick = function(){
+    save.disabled = true;
+    pdo('rate', {key: it.key, value: box.value}, function(){
+      save.disabled = false;
+      var p = cur(); if (p) loadPanel(p.slug, ['rates']);
+    });
+  };
+  row.appendChild(box);
+  row.appendChild(save);
+  d.appendChild(row);
+  return d;
+}
+
+/* -------------------------------------------------------------- tools */
+function renderTools(){
+  var v = $('view-tools'), p = cur();
+  v.innerHTML = '';
+  if (!p) return;
+  var w = el('div','wrap');
+  var head = el('div','sectionhead');
+  head.style.marginTop = '0';
+  head.appendChild(el('h2','display','Tools — ' + p.name));
+  w.appendChild(head);
+
+  /* A sub-tab whose backend reported available:false is dropped rather than
+     shown with a "not installed" notice.  panel.bots() and panel.raid() already
+     make that call from the conf files actually on disk, so a stock AzerothCore
+     without mod-playerbots or mod-raid-roster shows only what it can drive.
+     Trainer is never dropped: SOAP is core, not a module. */
+  var tabs = el('div','subtabs');
+  var avail = [['trainer','Trainer'], ['bots','Bots'], ['raid','Raid']]
+    .filter(function(t){
+      var st = PSTATE[t[0]];
+      return !(st && st.available === false);
+    });
+  // Falling back keeps the pane from rendering empty when the remembered tab
+  // belongs to a module this realm does not have.
+  if (!avail.some(function(t){ return t[0] === PSTATE.tool; }))
+    PSTATE.tool = avail.length ? avail[0][0] : 'trainer';
+  avail.forEach(function(t){
+    var b = el('button','subtab', t[1]);
+    b.setAttribute('aria-selected', PSTATE.tool === t[0] ? 'true' : 'false');
+    b.onclick = function(){ PSTATE.tool = t[0]; renderTools(); };
+    tabs.appendChild(b);
+  });
+  if (avail.length > 1) w.appendChild(tabs);
+
+  if (PSTATE.tool === 'trainer') toolsTrainer(w, p);
+  else if (PSTATE.tool === 'raid') toolsRaid(w, p);
+  else toolsBots(w, p);
+  v.appendChild(w);
+}
+
+function toolsTrainer(w, p){
+  var T = PSTATE.trainer;
+  if (!T){ w.appendChild(el('div','empty','Loading…')); return; }
+
+  var bar = el('div','card');
+  bar.appendChild(el('h3', null, 'Target'));
+  [['Character', T.character || 'none found'],
+   ['SOAP', T.soapConfigured ? (T.soapReady ? 'ready (' + T.soapFile + ')'
+                                            : 'configured but not answering')
+                             : 'not configured'],
+   ['Realm', T.active ? 'active' : 'not active']].forEach(function(pair){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', pair[0]));
+    r.appendChild(el('span','v', String(pair[1])));
+    bar.appendChild(r);
+  });
+  if (T.note) bar.appendChild(el('p', null, T.note)).style.fontSize = '12px';
+  w.appendChild(bar);
+  w.appendChild(el('div', null)).style.height = '1rem';
+
+  var byCat = {}, order = [];
+  (T.commands || []).forEach(function(c){
+    if (!byCat[c.cat]){ byCat[c.cat] = []; order.push(c.cat); }
+    byCat[c.cat].push(c);
+  });
+  order.forEach(function(catName){
+    var cb = el('div','catbar');
+    cb.appendChild(el('h3', null, catName));
+    w.appendChild(cb);
+    var grid = el('div','cmdgrid');
+    byCat[catName].forEach(function(c){ grid.appendChild(cmdCard(c, 'trainer', T)); });
+    w.appendChild(grid);
+    w.appendChild(el('div', null)).style.height = '1rem';
+  });
+}
+
+function toolsBots(w, p){
+  var B = PSTATE.bots;
+  if (!B){ w.appendChild(el('div','empty','Loading…')); return; }
+  if (!B.available){
+    w.appendChild(el('div','empty', B.reason || 'Not available for this realm.'));
+    return;
+  }
+  var top = el('div','grid cols');
+
+  var c1 = el('div','card');
+  c1.appendChild(el('h3', null, 'Online'));
+  [['Bots', B.online.bots == null ? '—' : B.online.bots],
+   ['Players', B.online.players == null ? '—' : B.online.players],
+   ['Your character', B.character || '—']].forEach(function(pair){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', pair[0]));
+    r.appendChild(el('span','v', String(pair[1])));
+    c1.appendChild(r);
+  });
+  top.appendChild(c1);
+
+  var c2 = el('div','card');
+  c2.appendChild(el('h3', null, 'Config gates'));
+  c2.appendChild(el('p', null,
+    'The server refuses several of these commands depending on the values below, '
+    + 'so they are shown rather than left to surprise you in chat.'))
+    .style.fontSize = '12px';
+  Object.keys(B.gates || {}).forEach(function(k){
+    var gv = B.gates[k];
+    var r = el('div','stat');
+    r.appendChild(el('span','k', gv.key));
+    r.appendChild(el('span','v', gv.v == null ? '—' : gv.v));
+    c2.appendChild(r);
+  });
+  top.appendChild(c2);
+
+  if ((B.specs || []).length){
+    var c3 = el('div','card');
+    c3.appendChild(el('h3', null, 'Premade specs'));
+    B.specs.forEach(function(sp){
+      var r = el('div','stat');
+      r.appendChild(el('span','k', sp.name));
+      r.appendChild(el('span','v', sp.items.map(function(i){ return i.t; }).join(', ')));
+      r.querySelector('.v').style.cssText =
+        'font-weight:400;font-size:12px;text-align:right;color:var(--foreground-dim)';
+      c3.appendChild(r);
+    });
+    top.appendChild(c3);
+  }
+  w.appendChild(top);
+  w.appendChild(el('div', null)).style.height = '1rem';
+
+  var note = el('div','warnbox');
+  note.appendChild(el('b', null, 'Copy only. '));
+  note.appendChild(document.createTextNode(
+    'A bot belongs to a master’s client session, so the world refuses every '
+    + 'playerbot command from the console. These build the exact line and hand '
+    + 'it over — they never pretend to run it.'));
+  w.appendChild(note);
+  w.appendChild(el('div', null)).style.height = '1rem';
+
+  var byCat = {}, order = [];
+  (B.commands || []).forEach(function(c){
+    var k = c.cat || 'Commands';
+    if (!byCat[k]){ byCat[k] = []; order.push(k); }
+    byCat[k].push(c);
+  });
+  order.forEach(function(catName){
+    var cb = el('div','catbar');
+    cb.appendChild(el('h3', null, catName));
+    w.appendChild(cb);
+    var grid = el('div','cmdgrid');
+    byCat[catName].forEach(function(c){ grid.appendChild(cmdCard(c, 'bots', B)); });
+    w.appendChild(grid);
+    w.appendChild(el('div', null)).style.height = '1rem';
+  });
+}
+
+/* mod-raid-roster: one fixed 40-man roster, so the panel leads with what is
+   actually pinned rather than with the commands.  Same shape as toolsBots on
+   purpose - it is the same job (build a line, hand it over) against a different
+   catalogue, and cmdCard is shared so the copy behaviour cannot drift. */
+function toolsRaid(w, p){
+  var R = PSTATE.raid;
+  if (!R){ w.appendChild(el('div','empty','Loading…')); return; }
+  if (!R.available){
+    w.appendChild(el('div','empty', R.reason || 'Not available for this realm.'));
+    return;
+  }
+  var top = el('div','grid cols');
+
+  function statRow(into, k, v, dim){
+    var r = el('div','stat');
+    r.appendChild(el('span','k', k));
+    r.appendChild(el('span','v', String(v)));
+    if (dim) r.querySelector('.v').style.cssText =
+      'font-weight:400;font-size:12px;text-align:right;color:var(--foreground-dim)';
+    into.appendChild(r);
+    return r;
+  }
+
+  var ro = R.roster || {};
+  var c1 = el('div','card');
+  c1.appendChild(el('h3', null, 'Your roster'));
+  statRow(c1, 'Pinned slots', ro.slots == null ? 'none yet' : ro.slots + ' of 39');
+  statRow(c1, 'Online now', ro.online == null ? '—' : ro.online);
+  statRow(c1, 'Owner', ro.owners || '—', true);
+  statRow(c1, 'Your character', R.character || '—', true);
+  /* A stale slot is one whose pinned character no longer exists, and it is the
+     usual reason a login lands short of the preset - so it is called out rather
+     than folded into the slot count. */
+  if (ro.stale)
+    statRow(c1, 'Stale slots', ro.stale + ' — character gone, re-create the roster');
+  if (ro.rosters != null && ro.rosters > 1)
+    statRow(c1, 'Rosters on this realm', ro.rosters, true);
+  top.appendChild(c1);
+
+  var c2 = el('div','card');
+  c2.appendChild(el('h3', null, 'Config gates'));
+  c2.appendChild(el('p', null,
+    'Split across two files: the module owns its own switch and then leans on '
+    + 'mod-playerbots for the character pool it pins and the gear it hands out.'))
+    .style.fontSize = '12px';
+  Object.keys(R.gates || {}).forEach(function(k){
+    var gv = R.gates[k];
+    statRow(c2, gv.key, gv.v == null ? '—' : gv.v);
+  });
+  top.appendChild(c2);
+
+  if ((R.presets || []).length){
+    var c3 = el('div','card');
+    c3.appendChild(el('h3', null, 'Raid sizes'));
+    c3.appendChild(el('p', null,
+      'Strict subsets of one master slot table, and the size counts you — so '
+      + '25-man fields 24 bots and always contains the 20-man. Splits read '
+      + 'tank / heal / dps.'))
+      .style.fontSize = '12px';
+    R.presets.forEach(function(s){
+      /* Compact on purpose: spelled-out role words wrap the value onto three
+         lines in a third-width card and break the key column with it. */
+      statRow(c3, s.size + '-man',
+        s.bots + ' bots · ' + s.tank + '/' + s.heal + '/' + s.dps, true);
+    });
+    top.appendChild(c3);
+  }
+  w.appendChild(top);
+  w.appendChild(el('div', null)).style.height = '1rem';
+
+  var note = el('div','warnbox');
+  note.appendChild(el('b', null, 'Copy only. '));
+  note.appendChild(document.createTextNode(
+    'Every .raidroster handler is declared console-capable but refuses to run '
+    + 'outside a client session, so these build the exact line and hand it over '
+    + '— they never pretend to run it. Create once; sync after you gear up.'));
+  w.appendChild(note);
+  w.appendChild(el('div', null)).style.height = '1rem';
+
+  var byCat = {}, order = [];
+  (R.commands || []).forEach(function(c){
+    var k = c.cat || 'Commands';
+    if (!byCat[k]){ byCat[k] = []; order.push(k); }
+    byCat[k].push(c);
+  });
+  order.forEach(function(catName){
+    var cb = el('div','catbar');
+    cb.appendChild(el('h3', null, catName));
+    w.appendChild(cb);
+    var grid = el('div','cmdgrid');
+    byCat[catName].forEach(function(c){ grid.appendChild(cmdCard(c, 'raid', R)); });
+    w.appendChild(grid);
+    w.appendChild(el('div', null)).style.height = '1rem';
+  });
+}
+
+/* One command, its argument inputs, and the button that builds or runs it. */
+function cmdCard(c, kind, ctxData){
+  var card = el('div','cmdcard');
+  var h = el('h4', null, c.label || c.id);
+  var mode = (kind === 'bots' || kind === 'raid') ? 'copy' : (c.mode || 'copy');
+  h.appendChild(el('span','mode ' + mode, mode === 'run' ? 'runs here' : 'copy'));
+  card.appendChild(h);
+  if (c.desc) card.appendChild(el('p', null, c.desc));
+  if (c.tip) card.title = c.tip;
+
+  var inputs = {};
+  if ((c.args || []).length){
+    var args = el('div','args');
+    c.args.forEach(function(a){
+      var lab = el('label', null, null);
+      lab.appendChild(el('span', null, a.label || a.key));
+      var inp;
+      if (a.type === 'select'){
+        inp = document.createElement('select');
+        /* Only bots and raid selects may lead with a blank: control._cmd_build()
+           drops an empty optional arg, but trainer_build() treats '' as absent
+           and fails with "missing value: <label>" unless the arg carries a
+           default.  The one trainer select (Destination) has none, so it must
+           start on a real option rather than on an empty row that looks chosen. */
+        if ((kind === 'bots' || kind === 'raid') && !a.req && a.default === undefined)
+          inp.appendChild(new Option('', ''));
+        (a.options || []).forEach(function(o){
+          inp.appendChild(new Option(o.t, o.v));
+        });
+        if (a.default !== undefined) inp.value = a.default;
+      } else {
+        inp = document.createElement('input');
+        inp.type = (a.type === 'number') ? 'number' : 'text';
+        if (a.default !== undefined) inp.value = a.default;
+        if (a.placeholder) inp.placeholder = a.placeholder;
+      }
+      lab.appendChild(inp);
+      inputs[a.key] = inp;
+      args.appendChild(lab);
+    });
+    card.appendChild(args);
+  }
+
+  var foot = el('div','foot');
+  var go = el('button','mini', mode === 'run' ? 'Run' : 'Copy command');
+  if (kind === 'trainer' && mode === 'run' && !(ctxData.active && ctxData.soapReady)){
+    go.disabled = true;
+    go.title = ctxData.active ? 'SOAP is not answering' : 'not the active realm';
+  }
+  go.onclick = function(){
+    var vals = {};
+    Object.keys(inputs).forEach(function(k){ vals[k] = inputs[k].value; });
+    go.disabled = true;
+    pdo(kind, {id: c.id, args: vals}, function(){ go.disabled = false; });
+  };
+  foot.appendChild(go);
+  card.appendChild(foot);
+  return card;
+}
+
+/* ---------------------------------------------------------- reference */
+/* The old panel's codex, now partitioned per realm.  It reads
+   refdata-<slug>.json, built from that realm's own world DB and its own
+   Data/dbc/Spell.dbc, because the realms genuinely disagree: Ascension knows
+   127,502 creatures and 208,192 named spells where vanilla knows 30,178 and
+   49,839.  A single shared file showed vanilla's numbers under every profile.
+   Switching profiles drops the loaded set and fetches the new one. */
+var QUAL = ['Poor','Common','Uncommon','Rare','Epic','Legendary','Artifact','Heirloom'];
+var RANKN = ['Normal','Elite','Rare Elite','Boss','Rare'];
+var ICLASS = {0:'Consumable',1:'Container',2:'Weapon',3:'Gem',4:'Armor',5:'Reagent',
+  6:'Projectile',7:'Trade Goods',8:'Generic',9:'Recipe',10:'Money',11:'Quiver',12:'Quest',
+  13:'Key',14:'Permanent',15:'Miscellaneous',16:'Glyph'};
+var CTYPE = {0:'Unspecified',1:'Beast',2:'Dragonkin',3:'Demon',4:'Elemental',5:'Giant',
+  6:'Undead',7:'Humanoid',8:'Critter',9:'Mechanical',10:'Not Specified',11:'Totem',
+  12:'Non-combat Pet',13:'Gas Cloud'};
+var GOTYPE = {0:'Door',1:'Button',2:'Questgiver',3:'Chest',4:'Binder',5:'Generic',6:'Trap',
+  7:'Chair',8:'Spell Focus',9:'Text',10:'Goober',11:'Transport',12:'Area Damage',13:'Camera',
+  14:'Map Object',15:'Transport',17:'Fishing Node',19:'Mailbox',20:'Auction House',
+  21:'Guard Post',22:'Spell Caster',23:'Meeting Stone',24:'Flag Stand',25:'Fishing Hole',
+  26:'Flag Drop',27:'Mini Game',29:'Capture Point',30:'Aura Generator',31:'Dungeon Difficulty',
+  32:'Barber Chair',33:'Destructible',34:'Guild Bank',35:'Trapdoor'};
+
+function byNum(i){ return function(a,b){ return a[i]-b[i] || a[0]-b[0]; }; }
+function byNumD(i){ return function(a,b){ return b[i]-a[i] || a[0]-b[0]; }; }
+function byName(a,b){ return String(a[1]).localeCompare(String(b[1])); }
+function byId(a,b){ return a[0]-b[0]; }
+
+var CATS = [
+ {key:'commands', label:'Commands', build:function(r){ return '.' + r[0]; },
+  filters:[{id:'sec',label:'Access',idx:1,kind:'select',
+   opts:[{v:0,t:'Player'},{v:1,t:'GM level 1'},{v:2,t:'GM level 2'},{v:3,t:'GM level 3'}]}],
+  sorts:[{t:'Name A-Z',f:function(a,b){ return String(a[0]).localeCompare(String(b[0])); }},
+         {t:'Access level',f:function(a,b){ return a[1]-b[1] || String(a[0]).localeCompare(String(b[0])); }}]},
+ {key:'items', label:'Items', build:function(r){ return '.additem ' + r[0]; },
+  color:function(r){ return 'var(--q' + (r[2]>=0 && r[2]<=7 ? r[2] : 0) + ')'; },
+  chips:function(r){ return [{t:QUAL[r[2]]||('q'+r[2]),q:r[2]},{t:ICLASS[r[5]]||('class '+r[5])},
+    r[3]?{t:'ilvl '+r[3],cls:'num'}:null, r[4]?{t:'req '+r[4],cls:'num'}:null]; },
+  filters:[{id:'class',label:'Type',idx:5,kind:'select',optsFrom:['items',5,ICLASS]},
+           {id:'qual',label:'Rarity',idx:2,kind:'select',optsFrom:['items',2,QUAL]},
+           {id:'req',label:'Required level',idx:4,kind:'range'},
+           {id:'ilvl',label:'Item level',idx:3,kind:'range'}],
+  sorts:[{t:'ID',f:byId},{t:'Name A-Z',f:byName},
+         {t:'Rarity, high first',f:byNumD(2)},{t:'Rarity, low first',f:byNum(2)},
+         {t:'Item level, high first',f:byNumD(3)},{t:'Item level, low first',f:byNum(3)},
+         {t:'Required level, high first',f:byNumD(4)},{t:'Required level, low first',f:byNum(4)}]},
+ {key:'npcs', label:'NPCs', build:function(r){ return '.npc add ' + r[0]; },
+  chips:function(r){ return [r[4]?{t:RANKN[r[4]]||'',q:(r[4]===3?5:r[4]===2?4:r[4]===1?3:0)}:null,
+    {t:CTYPE[r[5]]||('type '+r[5])},
+    {t:r[2]===r[3]?('lvl '+r[2]):('lvl '+r[2]+'-'+r[3]),cls:'num'}]; },
+  filters:[{id:'ctype',label:'Creature type',idx:5,kind:'select',optsFrom:['npcs',5,CTYPE]},
+           {id:'rank',label:'Rank',idx:4,kind:'select',optsFrom:['npcs',4,RANKN]},
+           {id:'lvl',label:'Level',idx:2,kind:'range',idx2:3}],
+  sorts:[{t:'ID',f:byId},{t:'Name A-Z',f:byName},
+         {t:'Level, high first',f:byNumD(3)},{t:'Level, low first',f:byNum(2)}]},
+ {key:'objects', label:'Objects', build:function(r){ return '.gobject add ' + r[0]; },
+  chips:function(r){ return [{t:GOTYPE[r[2]]||('type '+r[2])}]; },
+  filters:[{id:'gtype',label:'Type',idx:2,kind:'select',optsFrom:['objects',2,GOTYPE]}],
+  sorts:[{t:'ID',f:byId},{t:'Name A-Z',f:byName}]},
+ {key:'quests', label:'Quests', build:function(r){ return '.quest add ' + r[0]; },
+  chips:function(r){ return [r[2]>0?{t:'lvl '+r[2],cls:'num'}:null,
+                             r[3]>0?{t:'req '+r[3],cls:'num'}:null]; },
+  filters:[{id:'qlvl',label:'Quest level',idx:2,kind:'range'},
+           {id:'qmin',label:'Required level',idx:3,kind:'range'}],
+  sorts:[{t:'ID',f:byId},{t:'Name A-Z',f:byName},
+         {t:'Quest level, high first',f:byNumD(2)},{t:'Quest level, low first',f:byNum(2)}]},
+ {key:'spells', label:'Spells', build:function(r){ return '.learn ' + r[0]; },
+  chips:function(r){ return [r[2]?{t:r[2],cls:'num'}:null]; },
+  filters:[{id:'ranked',label:'Rank',kind:'select',custom:true,
+            opts:[{v:1,t:'Has a rank'},{v:0,t:'No rank'}],
+            test:function(r,v){ return v===1 ? !!r[2] : !r[2]; }}],
+  sorts:[{t:'ID',f:byId},{t:'Name A-Z',f:byName}]}
+];
+
+var ROWH = 44, PAD = 8;
+var RF = {data:null, loading:null, slug:null, cat:'items', q:'', f:{}, sort:0,
+          results:[], sel:-1, lc:{}, wired:false};
+
+function refCat(){
+  for (var i = 0; i < CATS.length; i++) if (CATS[i].key === RF.cat) return CATS[i];
+  return CATS[0];
+}
+/* An alternate client has no world DB of its own, so it reads the dataset of
+   the realm it borrows.  Anything with no file yet falls back to refdata.json,
+   which rebuild-refdata.py keeps as a copy of the active realm's. */
+function refSlug(){
+  var p = cur();
+  return p ? (p.sharesRealm || p.slug) : null;
+}
+function refInvalidate(){
+  if (RF.slug !== null && RF.slug === refSlug()) return;
+  RF.data = null; RF.loading = null; RF.slug = null;
+  RF.lc = {}; RF.results = []; RF.sel = -1;
+}
+function refEnsure(){
+  if (RF.data) return Promise.resolve(RF.data);
+  if (RF.loading) return RF.loading;
+  var slug = refSlug();
+  var url = slug ? '/refdata-' + encodeURIComponent(slug) + '.json' : '/refdata.json';
+  RF.loading = fetch(url)
+    .then(function(r){ return r.ok ? r : fetch('/refdata.json'); })
+    .then(function(r){ if (!r.ok) throw new Error('no reference data'); return r.json(); })
+    .then(function(d){ RF.data = d; RF.slug = slug; RF.loading = null; return d; },
+          function(e){ RF.loading = null; throw e; });
+  return RF.loading;
+}
+function refPresent(key, idx, names){
+  var seen = {}, rows = (RF.data && RF.data[key]) || [], i;
+  for (i = 0; i < rows.length; i++) seen[rows[i][idx]] = true;
+  var out = [];
+  for (var k in seen) if (seen.hasOwnProperty(k)) out.push(+k);
+  out.sort(function(a,b){ return a-b; });
+  return out.map(function(v){ return {v:v, t:(names[v] !== undefined ? names[v] : ('#'+v))}; });
+}
+function refNameIdx(key){
+  if (RF.lc[key]) return RF.lc[key];
+  var src = (RF.data && RF.data[key]) || [], out = new Array(src.length),
+      isCmd = (key === 'commands');
+  for (var i = 0; i < src.length; i++) out[i] = String(isCmd ? src[i][0] : src[i][1]).toLowerCase();
+  RF.lc[key] = out;
+  return out;
+}
+function refSearch(){
+  var key = RF.cat, src = (RF.data && RF.data[key]) || [], term = RF.q.trim().toLowerCase();
+  if (!term) return src.slice();
+  var names = refNameIdx(key), pre = [], sub = [], i, p;
+  if (/^\d+$/.test(term) && key !== 'commands'){
+    var want = parseInt(term, 10), exact = [], partial = [];
+    for (i = 0; i < src.length; i++){
+      if (src[i][0] === want) exact.push(src[i]);
+      else if (String(src[i][0]).indexOf(term) === 0) partial.push(src[i]);
+    }
+    for (i = 0; i < src.length; i++) if (names[i].indexOf(term) !== -1) sub.push(src[i]);
+    return exact.concat(partial, sub);
+  }
+  for (i = 0; i < src.length; i++){
+    p = names[i].indexOf(term);
+    if (p === 0) pre.push(src[i]); else if (p > 0) sub.push(src[i]);
+  }
+  return pre.concat(sub);
+}
+function refFilter(rows){
+  var c = refCat();
+  (c.filters || []).forEach(function(f){
+    if (f.kind === 'select'){
+      var v = RF.f[f.id];
+      if (v === undefined) return;
+      rows = rows.filter(f.custom ? function(r){ return f.test(r, v); }
+                                  : function(r){ return r[f.idx] === v; });
+    } else if (f.kind === 'range'){
+      var lo = RF.f[f.id + '_lo'], hi = RF.f[f.id + '_hi'];
+      if (lo === undefined && hi === undefined) return;
+      var a = f.idx, b = (f.idx2 !== undefined ? f.idx2 : f.idx);
+      rows = rows.filter(function(r){
+        if (lo !== undefined && r[b] < lo) return false;
+        if (hi !== undefined && r[a] > hi) return false;
+        return true;
+      });
+    }
+  });
+  return rows;
+}
+function refRecompute(){
+  var c = refCat();
+  var rows = refFilter(refSearch());
+  var s = (c.sorts || [])[RF.sort];
+  if (s && (RF.sort > 0 || !RF.q)) rows = rows.slice().sort(s.f);
+  RF.results = rows;
+  RF.sel = -1;
+  var vp = $('refviewport');
+  if (vp) vp.scrollTop = 0;
+  refPaint();
+}
+function refActiveCount(){
+  var n = 0;
+  for (var k in RF.f) if (RF.f.hasOwnProperty(k) && RF.f[k] !== undefined) n++;
+  return n;
+}
+
+function renderReference(){
+  var v = $('view-reference');
+  v.innerHTML = '';
+  var w = el('div','wrap');
+  w.style.cssText = 'padding-top:1.2rem;padding-bottom:1.2rem';
+  var head = el('div','sectionhead');
+  head.style.marginTop = '0';
+  head.appendChild(el('h2','display','Reference'));
+  head.appendChild(el('span','eyebrow','3.3.5a game data · click a row to copy its command'));
+  w.appendChild(head);
+
+  var tabs = el('div','subtabs');
+  CATS.forEach(function(c){
+    var b = el('button','subtab', c.label);
+    b.setAttribute('aria-selected', RF.cat === c.key ? 'true' : 'false');
+    if (RF.data) b.appendChild(el('span','n', num((RF.data[c.key] || []).length)));
+    b.onclick = function(){
+      RF.cat = c.key; RF.f = {}; RF.sort = 0; RF.q = '';
+      renderReference();
+    };
+    tabs.appendChild(b);
+  });
+  w.appendChild(tabs);
+
+  var bar = el('div','toolbar');
+  var search = el('div','search');
+  search.appendChild(svg(ICON.search));
+  var inp = document.createElement('input');
+  inp.type = 'search';
+  inp.placeholder = 'Search by name or ID…';
+  inp.value = RF.q;
+  var deb;
+  inp.oninput = function(){
+    clearTimeout(deb);
+    deb = setTimeout(function(){ RF.q = inp.value; refRecompute(); refBuildFilters(); }, 90);
+  };
+  search.appendChild(inp);
+  bar.appendChild(search);
+  w.appendChild(bar);
+
+  var filters = el('div','reffilters');
+  filters.id = 'reffilters';
+  w.appendChild(filters);
+
+  var count = el('div','refcount');
+  count.id = 'refcount';
+  w.appendChild(count);
+
+  var rw = el('div','refwrap');
+  var vp = el('div', null);
+  vp.id = 'refviewport';
+  var spacer = el('div', null);
+  spacer.id = 'refspacer';
+  var rows = el('div', null);
+  rows.id = 'refrows';
+  vp.appendChild(spacer);
+  vp.appendChild(rows);
+  rw.appendChild(vp);
+  w.appendChild(rw);
+  v.appendChild(w);
+
+  vp.addEventListener('scroll', function(){ if (RF.cat !== 'commands') refPaintRows(); });
+  rows.addEventListener('click', function(e){
+    var t = e.target.closest ? e.target.closest('.refrow, .refcmd .nm') : null;
+    if (!t) return;
+    if (t.classList.contains('nm')){ copyText(t.dataset.cmd); return; }
+    var row = RF.results[+t.dataset.i];
+    if (!row) return;
+    RF.sel = +t.dataset.i;
+    copyText(refCat().build(row));
+    refPaintRows();
+  });
+
+  if (RF.data){
+    refBuildFilters();
+    refRecompute();
+  } else {
+    count.textContent = 'Loading reference data…';
+    /* Chain the repaint only on the load path.  refEnsure() hands back an
+       already-resolved promise once the 5.6 MB file is cached, so calling this
+       unconditionally would re-enter renderReference() from its own then()
+       as a microtask, forever, and wedge the tab before it paints a row. */
+    refEnsure().then(function(){
+      if (S.view !== 'reference') return;
+      renderReference();   // repaint once, now that the tab counts exist
+    }, function(){
+      count.textContent = 'Could not load reference data for '
+                        + ((cur() || {}).name || 'this profile');
+    });
+  }
+  // Category switches call this directly, bypassing paint(); keep the signature
+  // in step so the 5s poll does not rebuild the view out from under a search.
+  VSIG.reference = sig([RF.cat, !!RF.data, RF.slug]);
+}
+
+function refBuildFilters(){
+  var box = $('reffilters');
+  if (!box || !RF.data) return;
+  var c = refCat(), html = '';
+  (c.filters || []).forEach(function(f){
+    var opts = f.opts || (f.optsFrom ? refPresent(f.optsFrom[0], f.optsFrom[1], f.optsFrom[2]) : []);
+    if (f.kind === 'select'){
+      var o = '<option value="">All</option>';
+      opts.forEach(function(x){
+        o += '<option value="' + x.v + '"'
+           + (String(RF.f[f.id]) === String(x.v) ? ' selected' : '') + '>'
+           + hesc(x.t) + '</option>';
+      });
+      html += '<label class="fgroup"><span>' + hesc(f.label) + '</span>'
+            + '<select data-f="' + f.id + '">' + o + '</select></label>';
+    } else if (f.kind === 'range'){
+      var lo = RF.f[f.id + '_lo'], hi = RF.f[f.id + '_hi'];
+      html += '<div class="fgroup"><span>' + hesc(f.label) + '</span><div class="rangewrap">'
+            + '<input type="number" min="0" placeholder="min" data-r="' + f.id + '_lo" value="'
+            + (lo !== undefined ? lo : '') + '">'
+            + '<b>to</b>'
+            + '<input type="number" min="0" placeholder="max" data-r="' + f.id + '_hi" value="'
+            + (hi !== undefined ? hi : '') + '"></div></div>';
+    }
+  });
+  var so = '';
+  (c.sorts || []).forEach(function(s, i){
+    so += '<option value="' + i + '"' + (RF.sort === i ? ' selected' : '') + '>'
+        + hesc(s.t) + '</option>';
+  });
+  html += '<label class="fgroup"><span>Sort by</span>'
+        + '<select data-sort="1">' + so + '</select></label>';
+  if (refActiveCount() > 0)
+    html += '<button class="mini" type="button" data-reset="1">Reset filters</button>';
+  box.innerHTML = html;
+  if (box.dataset.wired) return;
+  box.dataset.wired = '1';
+  box.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.dataset.sort){ RF.sort = +t.value; refRecompute(); return; }
+    if (t.dataset.f !== undefined){
+      if (t.value === '') delete RF.f[t.dataset.f]; else RF.f[t.dataset.f] = +t.value;
+      refRecompute(); refBuildFilters(); return;
+    }
+    if (t.dataset.r !== undefined){
+      if (t.value === '') delete RF.f[t.dataset.r]; else RF.f[t.dataset.r] = +t.value;
+      refRecompute(); refBuildFilters();
+    }
+  });
+  box.addEventListener('click', function(e){
+    if (e.target.dataset && e.target.dataset.reset){
+      RF.f = {}; RF.sort = 0; refRecompute(); refBuildFilters();
+    }
+  });
+}
+
+function refPaint(){
+  var count = $('refcount');
+  if (!count) return;
+  var c = refCat(), n = RF.results.length;
+  var tot = ((RF.data && RF.data[RF.cat]) || []).length;
+  var bits = '<b>' + num(n) + '</b> of ' + num(tot) + ' ' + c.label.toLowerCase();
+  if (RF.q) bits += ' matching &ldquo;' + hesc(RF.q) + '&rdquo;';
+  if (refActiveCount()) bits += ' &middot; ' + refActiveCount() + ' filter'
+                              + (refActiveCount() > 1 ? 's' : '') + ' active';
+  count.innerHTML = bits;
+  refPaintRows();
+}
+
+function refPaintRows(){
+  var rows = $('refrows'), spacer = $('refspacer'), vp = $('refviewport');
+  if (!rows || !vp) return;
+  var c = refCat(), r = RF.results, n = r.length;
+
+  if (RF.cat === 'commands'){
+    spacer.style.height = '0';
+    rows.style.transform = 'none';
+    rows.style.position = 'static';
+    if (!n){ rows.innerHTML = refEmpty(); return; }
+    var lim = Math.min(n, 400), h = '<div class="refcmds">';
+    for (var i = 0; i < lim; i++){
+      var row = r[i], sec = row[1] < 4 ? row[1] : 3;
+      h += '<div class="refcmd"><div class="h">'
+         + '<span class="nm" data-cmd="' + hesc('.' + row[0]) + '">.' + hesc(row[0]) + '</span>'
+         + '<span class="sec sec' + sec + '">'
+         + (row[1] === 0 ? 'Player' : 'GM level ' + row[1]) + '</span></div>'
+         + (row[2] ? '<p>' + hesc(row[2]) + '</p>' : '') + '</div>';
+    }
+    h += '</div>';
+    if (n > lim) h += '<div class="empty">Showing the first ' + lim + ' of ' + num(n)
+                    + '. Keep typing to narrow.</div>';
+    rows.innerHTML = h;
+    return;
+  }
+
+  rows.style.position = 'absolute';
+  spacer.style.height = (n * ROWH) + 'px';
+  if (!n){ rows.innerHTML = refEmpty(); rows.style.transform = 'none'; return; }
+  var top = vp.scrollTop, vh = vp.clientHeight;
+  var first = Math.max(0, Math.floor(top / ROWH) - PAD);
+  var last = Math.min(n, Math.ceil((top + vh) / ROWH) + PAD);
+  var out = '';
+  for (var j = first; j < last; j++){
+    var rw = r[j], chips = c.chips ? c.chips(rw) : [], ch = '';
+    for (var k = 0; k < chips.length; k++){
+      var cp = chips[k];
+      if (!cp || !cp.t) continue;
+      var stl = (cp.q !== undefined) ? ' style="color:var(--q' + cp.q + ')"' : '';
+      ch += '<span class="rchip ' + (cp.cls || '') + '"' + stl + '>' + hesc(cp.t) + '</span>';
+    }
+    var ns = c.color ? ' style="color:' + c.color(rw) + '"' : '';
+    out += '<div class="refrow' + (j === RF.sel ? ' sel' : '') + '" data-i="' + j + '">'
+         + '<span class="id">' + rw[0] + '</span>'
+         + '<span class="nm"' + ns + '>' + hesc(rw[1] || '(unnamed)') + '</span>'
+         + '<span class="meta">' + ch + '</span>'
+         + '<span class="cmd">' + hesc(c.build(rw)) + '</span></div>';
+  }
+  rows.innerHTML = out;
+  rows.style.transform = 'translateY(' + (first * ROWH) + 'px)';
+}
+
+function refEmpty(){
+  return '<div class="empty">Nothing matches. Try a shorter word, a numeric ID, '
+       + 'or reset the filters.</div>';
+}
+
+boot();
+})();
+</script>
+</body>
+</html>

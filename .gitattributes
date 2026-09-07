@@ -1,0 +1,11 @@
+# Normalise to LF in the repository so diffs are stable regardless of who edits.
+* text=auto eol=lf
+
+# Checked out with CRLF on Windows: cscript.exe (.vbs) is the one that genuinely
+# cares, and PowerShell here-strings are less surprising with native endings.
+*.ps1  text eol=crlf
+*.vbs  text eol=crlf
+*.bat  text eol=crlf
+
+*.png  binary
+*.ico  binary

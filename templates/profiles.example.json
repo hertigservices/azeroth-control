@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "_contract": "Copy to realms/profiles.json and edit, or let install/detect.py generate it. Paths are relative to the repo root unless absolute. Full field reference in docs/CONFIGURATION.md.",
+
+  "activeRealm": "default",
+
+  "realms": [
+    {
+      "_comment": "A server this panel starts and stops itself. The common case on Windows.",
+
+      "slug": "default",
+      "name": "My Realm",
+      "tagline": "WotLK 3.3.5a",
+      "order": 0,
+      "kind": "realm",
+      "enabled": true,
+      "status": "live",
+      "accent": "#c9aa71",
+
+      "paths": {
+        "server": "server",
+        "configs": "server/configs",
+        "modconfigs": "server/configs/modules",
+        "logs": "server/logs",
+        "client": "client",
+        "addons": "client/Interface/AddOns",
+        "cache": "client/Cache"
+      },
+
+      "launch": {
+        "kind": "exe",
+        "target": "client/Wow.exe",
+        "workdir": "client"
+      },
+
+      "_db_note": "Schema NAMES only. Host, port, user and password are read from this realm's own worldserver.conf at query time, so a moved database or a changed password needs no edit here.",
+      "db": {
+        "auth": "acore_auth",
+        "world": "acore_world",
+        "characters": "acore_characters",
+        "user": "acore"
+      },
+
+      "controls": {
+        "serverManaged": true,
+        "phaseAware": false,
+        "botsAware": false,
+        "addonsAware": true
+      },
+
+      "notes": "Free text, shown on the Play tab."
+    },
+
+    {
+      "_comment": "A server this panel does NOT own: Docker, systemd, another machine, or a hosting panel. Server/World/Tools disappear; Play, Addons, Reference and Changelog work normally. paths.configs must point at a directory this machine can READ - for Docker, the mounted volume on the host side.",
+
+      "slug": "docker",
+      "name": "Dockered Realm",
+      "tagline": "acore-docker",
+      "order": 1,
+      "kind": "realm",
+      "enabled": false,
+      "status": "live",
+      "accent": "#3b82f6",
+
+      "paths": {
+        "configs": "C:/acore-docker/env/dist/etc",
+        "modconfigs": "C:/acore-docker/env/dist/etc/modules",
+        "logs": "C:/acore-docker/env/dist/logs",
+        "client": "C:/WoW335",
+        "addons": "C:/WoW335/Interface/AddOns",
+        "cache": "C:/WoW335/Cache"
+      },
+
+      "launch": {
+        "kind": "exe",
+        "target": "C:/WoW335/Wow.exe",
+        "workdir": "C:/WoW335"
+      },
+
+      "db": {
+        "auth": "acore_auth",
+        "world": "acore_world",
+        "characters": "acore_characters",
+        "user": "root"
+      },
+
+      "controls": {
+        "serverManaged": false,
+        "phaseAware": false,
+        "botsAware": false,
+        "addonsAware": true
+      },
+
+      "notes": "Started with docker compose, not by this panel. If the container maps MySQL to a non-default host port, the mapped port must be what worldserver.conf says - that file is where the panel reads it from."
+    }
+  ]
+}

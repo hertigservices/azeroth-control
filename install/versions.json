@@ -1,0 +1,103 @@
+{
+  "_comment": [
+    "Pinned build prerequisites for AzerothCore 3.3.5a on Windows.",
+    "",
+    "Every pin here exists because the NEWER version is broken for this build,",
+    "not because nobody has updated the file. Two of them look like downgrades",
+    "and are not. If you bump one, expect to spend the afternoon on it - and",
+    "please record what happened in docs/TROUBLESHOOTING.md either way.",
+    "",
+    "Consumed by install/install-prereqs.ps1 and quoted by AGENTS.md."
+  ],
+
+  "cmake": {
+    "version": "3.31.8",
+    "winget": "Kitware.CMake",
+    "override": "/quiet /norestart ADD_CMAKE_TO_PATH=System",
+    "verify": "cmake --version",
+    "expect": "starts with 3.31",
+    "why_pinned": "CMake 4.x dropped support for the cmake_minimum_required floors declared by AzerothCore's bundled dependencies. Configure fails with errors that read like a missing dependency rather than a CMake version problem, which sends people looking in the wrong place for hours."
+  },
+
+  "openssl": {
+    "version": "3.5.8",
+    "channel": "LTS",
+    "winget": "ShiningLight.OpenSSL.Dev",
+    "installer": "Win64OpenSSL-3_5_8.msi",
+    "verify": "Test-Path 'C:\\Program Files\\OpenSSL-Win64\\include\\openssl\\ssl.h'",
+    "expect": "True",
+    "why_pinned": "3.6+ moved headers AzerothCore has not caught up with, and slproweb pulled the 3.6.x Windows installers. 3.5.8 is the LTS line and the correct choice even though the number is lower than what a package manager will offer."
+  },
+
+  "boost": {
+    "version": "1.89.0",
+    "toolset": "msvc-14.3",
+    "arch": "x64",
+    "installer": "boost_1_89_0-msvc-14.3-64.exe",
+    "install_dir": "C:\\local\\boost_1_89_0",
+    "env": {
+      "BOOST_ROOT": "C:/local/boost_1_89_0",
+      "Boost_ROOT": "C:/local/boost_1_89_0"
+    },
+    "verify": "Test-Path 'C:\\local\\boost_1_89_0\\boost\\version.hpp'",
+    "expect": "True",
+    "why_pinned": "Must match the MSVC toolset (v143). Building Boost from source is a long detour with no payoff.",
+    "gotchas": [
+      "Set BOTH spellings of the environment variable. AzerothCore's CMake reads ENV{Boost_ROOT}; the wiki says BOOST_ROOT. Which one is consulted has changed between versions.",
+      "Use FORWARD SLASHES. A backslashed value is read as containing escapes and the path silently fails to resolve.",
+      "A Machine-scope variable is not visible to an already-open shell. Open a new one before configuring, or configure will report Boost missing while it is plainly installed."
+    ]
+  },
+
+  "mysql": {
+    "version": "8.4",
+    "winget": "Oracle.MySQL",
+    "port": 3306,
+    "bind": "127.0.0.1",
+    "my_ini": {
+      "sql_mode": "NO_ENGINE_SUBSTITUTION",
+      "max_allowed_packet": "256M",
+      "innodb_buffer_pool_size": "4G",
+      "innodb_flush_log_at_trx_commit": 2,
+      "max_connections": 200
+    },
+    "verify": "SHOW DATABASES;",
+    "expect": "acore_auth, acore_world, acore_characters",
+    "why_pinned": "MySQL 9.x drops the authentication plugin AzerothCore's connector expects.",
+    "gotchas": [
+      "sql_mode MUST be relaxed. AzerothCore's world SQL trips STRICT_TRANS_TABLES and NO_ZERO_DATE, and the import dies partway through with a constraint error that reads like corrupt data.",
+      "innodb_buffer_pool_size of 4G assumes a machine with 16 GB or more. Lower it on a smaller box; the import is slower but succeeds.",
+      "Running MySQL as an in-tree process rather than a Windows service keeps the install relocatable. The service records an absolute basedir, which pins the whole thing to wherever it was first installed."
+    ]
+  },
+
+  "visual_studio": {
+    "version": "2022",
+    "toolset": "v143",
+    "workload": "Desktop development with C++",
+    "why_pinned": "The Boost binary above is built for v143. Mixing toolsets produces link errors that name symbols rather than the cause."
+  },
+
+  "sources": {
+    "core_with_playerbots": "https://github.com/mod-playerbots/azerothcore-wotlk.git",
+    "core_upstream": "https://github.com/azerothcore/azerothcore-wotlk.git",
+    "_note": "mod-playerbots needs core changes that are NOT in upstream azerothcore. If you want bots, clone the fork. Adding the module to an upstream clone builds and then misbehaves at runtime in ways that are hard to trace back here."
+  },
+
+  "modules": {
+    "mod-playerbots": "https://github.com/mod-playerbots/mod-playerbots.git",
+    "mod-individual-progression": "https://github.com/ZhengPeiRu21/mod-individual-progression.git",
+    "mod-ah-bot": "https://github.com/azerothcore/mod-ah-bot.git",
+    "mod-ollama-chat": "https://github.com/DustinHendrickson/mod-ollama-chat.git",
+    "mod-autobalance": "https://github.com/azerothcore/mod-autobalance.git",
+    "mod-solo-lfg": "https://github.com/azerothcore/mod-solo-lfg.git",
+    "mod-aoe-loot": "https://github.com/azerothcore/mod-aoe-loot",
+    "mod-junk-to-gold": "https://github.com/noisiver/mod-junk-to-gold"
+  },
+
+  "build": {
+    "jobs": 8,
+    "priority": "BelowNormal",
+    "why": "A full-core build at normal priority starves everything else on the machine - including whatever you are using to watch the build - for the whole hour, and finishes no sooner in wall-clock terms on a typical desktop. A running build can be re-throttled in flight if you forgot."
+  }
+}

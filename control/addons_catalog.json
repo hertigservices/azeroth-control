@@ -1,0 +1,1025 @@
+{
+  "source": "https://github.com/NoM0Re/WoW-3.3.5a-Addons",
+  "count": 111,
+  "categories": {
+    "Bags & Mail": 5,
+    "Combat": 20,
+    "Economy": 6,
+    "Healing": 7,
+    "Interface": 15,
+    "Loot & Gear": 12,
+    "Quests & Maps": 7,
+    "Social": 9,
+    "Utility": 26,
+    "PvP": 4
+  },
+  "skipped_rar": [
+    "Auctionator+.rar",
+    "Auctionator_WatchList.rar",
+    "Gatherer_Wowhead335.rar",
+    "MarketWatcher+.rar",
+    "TradeSkillMaster+.rar"
+  ],
+  "addons": [
+    {
+      "name": "AdiBags",
+      "file": "AdiBags.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AdiBags.zip",
+      "size": 369576,
+      "category": "Bags & Mail",
+      "desc": "Single-window bags with automatic categories",
+      "recommended": true
+    },
+    {
+      "name": "Altoholic",
+      "file": "Altoholic.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Altoholic.zip",
+      "size": 1168281,
+      "category": "Bags & Mail",
+      "desc": "Tracks all your characters' inventory and professions",
+      "recommended": true
+    },
+    {
+      "name": "Postal",
+      "file": "Postal.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Postal.zip",
+      "size": 69015,
+      "category": "Bags & Mail",
+      "desc": "Bulk mail sending and one-click inbox emptying",
+      "recommended": true
+    },
+    {
+      "name": "DBM",
+      "file": "DBM.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/DBM.zip",
+      "size": 13193889,
+      "category": "Combat",
+      "desc": "Deadly Boss Mods: boss timers and warnings",
+      "recommended": true
+    },
+    {
+      "name": "Details",
+      "file": "Details.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Details.zip",
+      "size": 5417339,
+      "category": "Combat",
+      "desc": "Detailed damage meter with deep breakdowns",
+      "recommended": true
+    },
+    {
+      "name": "GTFO",
+      "file": "GTFO.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/GTFO.zip",
+      "size": 309647,
+      "category": "Combat",
+      "desc": "Audio alert when standing in damaging effects",
+      "recommended": true
+    },
+    {
+      "name": "Omen",
+      "file": "Omen.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Omen.zip",
+      "size": 257373,
+      "category": "Combat",
+      "desc": "Threat meter",
+      "recommended": true
+    },
+    {
+      "name": "Skada",
+      "file": "Skada.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Skada.zip",
+      "size": 960793,
+      "category": "Combat",
+      "desc": "Damage and healing meter, modular",
+      "recommended": true
+    },
+    {
+      "name": "TellMeWhen",
+      "file": "TellMeWhen.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/TellMeWhen.zip",
+      "size": 21455,
+      "category": "Combat",
+      "desc": "Configurable cooldown, proc and aura alerts",
+      "recommended": true
+    },
+    {
+      "name": "TidyPlates",
+      "file": "TidyPlates.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/TidyPlates.zip",
+      "size": 1555085,
+      "category": "Combat",
+      "desc": "Enhanced, themeable nameplates",
+      "recommended": true
+    },
+    {
+      "name": "AckisRecipeList",
+      "file": "AckisRecipeList.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AckisRecipeList.zip",
+      "size": 833295,
+      "category": "Economy",
+      "desc": "Tracks which profession recipes you still need",
+      "recommended": true
+    },
+    {
+      "name": "Auctionator",
+      "file": "Auctionator.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Auctionator.zip",
+      "size": 217917,
+      "category": "Economy",
+      "desc": "Fast auction house buying, selling and price history",
+      "recommended": true
+    },
+    {
+      "name": "Molinari",
+      "file": "Molinari.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Molinari.zip",
+      "size": 2438,
+      "category": "Economy",
+      "desc": "One-click milling, prospecting and disenchanting",
+      "recommended": true
+    },
+    {
+      "name": "Clique",
+      "file": "Clique.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Clique.zip",
+      "size": 69595,
+      "category": "Healing",
+      "desc": "Bind spells to mouse clicks on frames",
+      "recommended": true
+    },
+    {
+      "name": "Decursive",
+      "file": "Decursive.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Decursive.zip",
+      "size": 408262,
+      "category": "Healing",
+      "desc": "One-click debuff and curse removal",
+      "recommended": true
+    },
+    {
+      "name": "Grid2",
+      "file": "Grid2.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Grid2.zip",
+      "size": 1039893,
+      "category": "Healing",
+      "desc": "Compact raid frames with status indicators",
+      "recommended": true
+    },
+    {
+      "name": "HealBot",
+      "file": "HealBot.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/HealBot.zip",
+      "size": 1850519,
+      "category": "Healing",
+      "desc": "Click-to-heal raid frames",
+      "recommended": true
+    },
+    {
+      "name": "Bartender4",
+      "file": "Bartender4.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Bartender4.zip",
+      "size": 254790,
+      "category": "Interface",
+      "desc": "Fully configurable action bars",
+      "recommended": true
+    },
+    {
+      "name": "ElvUI",
+      "file": "ElvUI.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ElvUI.zip",
+      "size": 6187023,
+      "category": "Interface",
+      "desc": "Complete UI replacement: unit frames, bars, chat, bags, minimap",
+      "recommended": true
+    },
+    {
+      "name": "Mapster",
+      "file": "Mapster.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Mapster.zip",
+      "size": 214661,
+      "category": "Interface",
+      "desc": "World map improvements: scale, coords, fog",
+      "recommended": true
+    },
+    {
+      "name": "SexyMap",
+      "file": "SexyMap.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SexyMap.zip",
+      "size": 201466,
+      "category": "Interface",
+      "desc": "Minimap styling and cleanup",
+      "recommended": true
+    },
+    {
+      "name": "ShadowedUnitFrames",
+      "file": "ShadowedUnitFrames.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ShadowedUnitFrames.zip",
+      "size": 496383,
+      "category": "Interface",
+      "desc": "Highly customisable player/target/raid frames",
+      "recommended": true
+    },
+    {
+      "name": "TipTac",
+      "file": "TipTac.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/TipTac.zip",
+      "size": 45671,
+      "category": "Interface",
+      "desc": "Tooltip styling, anchoring and extra info",
+      "recommended": true
+    },
+    {
+      "name": "Atlas",
+      "file": "Atlas.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Atlas.zip",
+      "size": 17190192,
+      "category": "Loot & Gear",
+      "desc": "Dungeon and raid maps with boss locations",
+      "recommended": true
+    },
+    {
+      "name": "AtlasLoot",
+      "file": "AtlasLoot.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AtlasLoot.zip",
+      "size": 1976377,
+      "category": "Loot & Gear",
+      "desc": "Full loot tables for dungeons and raids",
+      "recommended": true
+    },
+    {
+      "name": "GearScore",
+      "file": "GearScore.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/GearScore.zip",
+      "size": 177050,
+      "category": "Loot & Gear",
+      "desc": "Gear scoring for inspected players",
+      "recommended": true
+    },
+    {
+      "name": "Ludwig",
+      "file": "Ludwig.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Ludwig.zip",
+      "size": 9345,
+      "category": "Loot & Gear",
+      "desc": "Searchable database of every item",
+      "recommended": true
+    },
+    {
+      "name": "Carbonite",
+      "file": "Carbonite.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Carbonite.zip",
+      "size": 2059807,
+      "category": "Quests & Maps",
+      "desc": "Map overhaul with quest tracking and gathering routes",
+      "recommended": true
+    },
+    {
+      "name": "Cartographer",
+      "file": "Cartographer.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Cartographer.zip",
+      "size": 861988,
+      "category": "Quests & Maps",
+      "desc": "Classic map suite: notes, herbalism, mining",
+      "recommended": true
+    },
+    {
+      "name": "QuestHelper",
+      "file": "QuestHelper.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/QuestHelper.zip",
+      "size": 5920553,
+      "category": "Quests & Maps",
+      "desc": "Quest objective routing and map guidance (free Zygor alternative)",
+      "recommended": true
+    },
+    {
+      "name": "Chatter",
+      "file": "Chatter.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Chatter.zip",
+      "size": 262830,
+      "category": "Social",
+      "desc": "Chat frame improvements and formatting",
+      "recommended": true
+    },
+    {
+      "name": "WIM",
+      "file": "WIM.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/WIM.zip",
+      "size": 759732,
+      "category": "Social",
+      "desc": "Whispers in separate instant-message windows",
+      "recommended": true
+    },
+    {
+      "name": "ACP",
+      "file": "ACP.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ACP.zip",
+      "size": 27642,
+      "category": "Utility",
+      "desc": "Addon Control Panel: enable/disable addons in-game",
+      "recommended": true
+    },
+    {
+      "name": "Talented",
+      "file": "Talented.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Talented.zip",
+      "size": 203504,
+      "category": "Utility",
+      "desc": "Talent template planner and applier",
+      "recommended": true
+    },
+    {
+      "name": "AmILockedOut",
+      "file": "AmILockedOut.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AmILockedOut.zip",
+      "size": 160733,
+      "category": "Bags & Mail",
+      "desc": "Shows raid lockouts across your characters",
+      "recommended": false
+    },
+    {
+      "name": "MacroBank",
+      "file": "MacroBank.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MacroBank.zip",
+      "size": 146914,
+      "category": "Bags & Mail",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Afflicted",
+      "file": "Afflicted.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Afflicted.zip",
+      "size": 254340,
+      "category": "Combat",
+      "desc": "Enemy cooldown and CC tracking",
+      "recommended": false
+    },
+    {
+      "name": "cooldowns",
+      "file": "cooldowns.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/cooldowns.zip",
+      "size": 8043,
+      "category": "Combat",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Critline",
+      "file": "Critline.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Critline.zip",
+      "size": 70013,
+      "category": "Combat",
+      "desc": "Tracks your top hits and heals",
+      "recommended": false
+    },
+    {
+      "name": "DrDamage",
+      "file": "DrDamage.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/DrDamage.zip",
+      "size": 300035,
+      "category": "Combat",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "EnsidiaFails",
+      "file": "EnsidiaFails.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/EnsidiaFails.zip",
+      "size": 286601,
+      "category": "Combat",
+      "desc": "Announces raid mistakes",
+      "recommended": false
+    },
+    {
+      "name": "EventHorizon",
+      "file": "EventHorizon.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/EventHorizon.zip",
+      "size": 56725,
+      "category": "Combat",
+      "desc": "Timeline view of DoTs and buffs",
+      "recommended": false
+    },
+    {
+      "name": "InterruptBar",
+      "file": "InterruptBar.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/InterruptBar.zip",
+      "size": 3259,
+      "category": "Combat",
+      "desc": "Tracks enemy interrupt cooldowns",
+      "recommended": false
+    },
+    {
+      "name": "LoseControl",
+      "file": "LoseControl.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/LoseControl.zip",
+      "size": 13030,
+      "category": "Combat",
+      "desc": "Shows loss-of-control effects on you and targets",
+      "recommended": false
+    },
+    {
+      "name": "MikScrollingBattleText",
+      "file": "MikScrollingBattleText.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MikScrollingBattleText.zip",
+      "size": 572295,
+      "category": "Combat",
+      "desc": "Classic scrolling combat text",
+      "recommended": false
+    },
+    {
+      "name": "NeedToKnow",
+      "file": "NeedToKnow.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/NeedToKnow.zip",
+      "size": 86089,
+      "category": "Combat",
+      "desc": "Aura and cooldown timer bars",
+      "recommended": false
+    },
+    {
+      "name": "SpellReplay",
+      "file": "SpellReplay.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SpellReplay.zip",
+      "size": 14437,
+      "category": "Combat",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "TrufiGCD",
+      "file": "TrufiGCD.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/TrufiGCD.zip",
+      "size": 158549,
+      "category": "Combat",
+      "desc": "Visual history of abilities used",
+      "recommended": false
+    },
+    {
+      "name": "xCT+",
+      "file": "xCT+.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/xCT+.zip",
+      "size": 405997,
+      "category": "Combat",
+      "desc": "Replacement scrolling combat text",
+      "recommended": false
+    },
+    {
+      "name": "autorepair",
+      "file": "autorepair.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/autorepair.zip",
+      "size": 1344,
+      "category": "Economy",
+      "desc": "Repairs gear automatically at vendors",
+      "recommended": false
+    },
+    {
+      "name": "Collectinator",
+      "file": "Collectinator.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Collectinator.zip",
+      "size": 681362,
+      "category": "Economy",
+      "desc": "Tracks missing pets and mounts",
+      "recommended": false
+    },
+    {
+      "name": "KeyBindingsProfiler",
+      "file": "KeyBindingsProfiler.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/KeyBindingsProfiler.zip",
+      "size": 1957,
+      "category": "Economy",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "PallyPower",
+      "file": "PallyPower.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/PallyPower.zip",
+      "size": 244709,
+      "category": "Healing",
+      "desc": "Paladin blessing assignment",
+      "recommended": false
+    },
+    {
+      "name": "RaidBuffStatus",
+      "file": "RaidBuffStatus.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RaidBuffStatus.zip",
+      "size": 321899,
+      "category": "Healing",
+      "desc": "Shows which raid buffs are missing",
+      "recommended": false
+    },
+    {
+      "name": "VuhDo",
+      "file": "VuhDo.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/VuhDo.zip",
+      "size": 1028016,
+      "category": "Healing",
+      "desc": "Advanced healing frames and click-casting",
+      "recommended": false
+    },
+    {
+      "name": "ActionBarSaver",
+      "file": "ActionBarSaver.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ActionBarSaver.zip",
+      "size": 16714,
+      "category": "Interface",
+      "desc": "Save and restore action bar layouts",
+      "recommended": false
+    },
+    {
+      "name": "BindPad",
+      "file": "BindPad.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/BindPad.zip",
+      "size": 25006,
+      "category": "Interface",
+      "desc": "Keybind spells/items without using bars",
+      "recommended": false
+    },
+    {
+      "name": "BlizzMove",
+      "file": "BlizzMove.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/BlizzMove.zip",
+      "size": 3861,
+      "category": "Interface",
+      "desc": "Drag default Blizzard windows anywhere",
+      "recommended": false
+    },
+    {
+      "name": "CleanMinimap",
+      "file": "CleanMinimap.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/CleanMinimap.zip",
+      "size": 191875,
+      "category": "Interface",
+      "desc": "Strips minimap clutter",
+      "recommended": false
+    },
+    {
+      "name": "Dominos",
+      "file": "Dominos.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Dominos.zip",
+      "size": 140777,
+      "category": "Interface",
+      "desc": "Lightweight action bar replacement",
+      "recommended": false
+    },
+    {
+      "name": "OPie",
+      "file": "OPie.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/OPie.zip",
+      "size": 65467,
+      "category": "Interface",
+      "desc": "Radial pop-up rings for spells and items",
+      "recommended": false
+    },
+    {
+      "name": "pMinimap",
+      "file": "pMinimap.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/pMinimap.zip",
+      "size": 28038,
+      "category": "Interface",
+      "desc": "Minimal minimap skin",
+      "recommended": false
+    },
+    {
+      "name": "SexyCooldown",
+      "file": "SexyCooldown.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SexyCooldown.zip",
+      "size": 182818,
+      "category": "Interface",
+      "desc": "Cooldowns as a timeline bar",
+      "recommended": false
+    },
+    {
+      "name": "SnowfallKeyPress",
+      "file": "SnowfallKeyPress.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SnowfallKeyPress.zip",
+      "size": 7904,
+      "category": "Interface",
+      "desc": "Fires actions on key down instead of key up",
+      "recommended": false
+    },
+    {
+      "name": "AllStats",
+      "file": "AllStats.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AllStats.zip",
+      "size": 14806,
+      "category": "Loot & Gear",
+      "desc": "Expanded character stat display",
+      "recommended": false
+    },
+    {
+      "name": "ClassLoot",
+      "file": "ClassLoot.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ClassLoot.zip",
+      "size": 265425,
+      "category": "Loot & Gear",
+      "desc": "Filters loot tables to your class",
+      "recommended": false
+    },
+    {
+      "name": "GearScoreLite",
+      "file": "GearScoreLite.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/GearScoreLite.zip",
+      "size": 7843,
+      "category": "Loot & Gear",
+      "desc": "Lightweight gear scoring",
+      "recommended": false
+    },
+    {
+      "name": "InspectEquip",
+      "file": "InspectEquip.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/InspectEquip.zip",
+      "size": 287760,
+      "category": "Loot & Gear",
+      "desc": "Shows inspected players' equipment in tooltips",
+      "recommended": false
+    },
+    {
+      "name": "MogIt",
+      "file": "MogIt.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MogIt.zip",
+      "size": 1131819,
+      "category": "Loot & Gear",
+      "desc": "Browse and preview item appearances",
+      "recommended": false
+    },
+    {
+      "name": "MoPItemTooltips",
+      "file": "MoPItemTooltips.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MoPItemTooltips.zip",
+      "size": 32362,
+      "category": "Loot & Gear",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Outfitter",
+      "file": "Outfitter.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Outfitter.zip",
+      "size": 586816,
+      "category": "Loot & Gear",
+      "desc": "Gear set manager with auto-switching",
+      "recommended": false
+    },
+    {
+      "name": "RaidRoll",
+      "file": "RaidRoll.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RaidRoll.zip",
+      "size": 338081,
+      "category": "Loot & Gear",
+      "desc": "Loot rolling and distribution helper",
+      "recommended": false
+    },
+    {
+      "name": "GladiusEx",
+      "file": "GladiusEx.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/GladiusEx.zip",
+      "size": 580791,
+      "category": "PvP",
+      "desc": "Arena enemy frames",
+      "recommended": false
+    },
+    {
+      "name": "NotPlater-3.3.5",
+      "file": "NotPlater-3.3.5.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/NotPlater-3.3.5.zip",
+      "size": 812434,
+      "category": "PvP",
+      "desc": "Nameplate customisation aimed at PvP",
+      "recommended": false
+    },
+    {
+      "name": "RaidBrowser",
+      "file": "RaidBrowser.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RaidBrowser.zip",
+      "size": 35040,
+      "category": "PvP",
+      "desc": "Browse and join raid groups",
+      "recommended": false
+    },
+    {
+      "name": "RaidComp",
+      "file": "RaidComp.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RaidComp.zip",
+      "size": 253755,
+      "category": "PvP",
+      "desc": "Raid composition planner",
+      "recommended": false
+    },
+    {
+      "name": "Cromulent",
+      "file": "Cromulent.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Cromulent.zip",
+      "size": 65185,
+      "category": "Quests & Maps",
+      "desc": "Adds zone level ranges to the world map",
+      "recommended": false
+    },
+    {
+      "name": "EveryQuest",
+      "file": "EveryQuest.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/EveryQuest.zip",
+      "size": 763075,
+      "category": "Quests & Maps",
+      "desc": "Browse and track all quests in the game",
+      "recommended": false
+    },
+    {
+      "name": "Overachiever",
+      "file": "Overachiever.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Overachiever.zip",
+      "size": 769060,
+      "category": "Quests & Maps",
+      "desc": "Achievement browsing and hints",
+      "recommended": false
+    },
+    {
+      "name": "TurnIn-2.1",
+      "file": "TurnIn-2.1.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/TurnIn-2.1.zip",
+      "size": 11740,
+      "category": "Quests & Maps",
+      "desc": "Auto-accepts and turns in quests",
+      "recommended": false
+    },
+    {
+      "name": "addemote",
+      "file": "addemote.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/addemote.zip",
+      "size": 5940,
+      "category": "Social",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "AddFriend",
+      "file": "AddFriend.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AddFriend.zip",
+      "size": 19574,
+      "category": "Social",
+      "desc": "Adds an Add Friend option to unit menus",
+      "recommended": false
+    },
+    {
+      "name": "autoflood",
+      "file": "autoflood.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/autoflood.zip",
+      "size": 4176,
+      "category": "Social",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "ChatFilter",
+      "file": "ChatFilter.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ChatFilter.zip",
+      "size": 2193,
+      "category": "Social",
+      "desc": "Filters spam and unwanted chat",
+      "recommended": false
+    },
+    {
+      "name": "FriendShare",
+      "file": "FriendShare.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/FriendShare.zip",
+      "size": 6763,
+      "category": "Social",
+      "desc": "Share friend lists between characters",
+      "recommended": false
+    },
+    {
+      "name": "IgnoreMore",
+      "file": "IgnoreMore.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/IgnoreMore.zip",
+      "size": 5665,
+      "category": "Social",
+      "desc": "Raises the ignore list limit",
+      "recommended": false
+    },
+    {
+      "name": "spy",
+      "file": "spy.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/spy.zip",
+      "size": 775385,
+      "category": "Social",
+      "desc": "Warns when enemy players are detected nearby",
+      "recommended": false
+    },
+    {
+      "name": "AutoInvite",
+      "file": "AutoInvite.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/AutoInvite.zip",
+      "size": 22353,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "BLT",
+      "file": "BLT.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/BLT.zip",
+      "size": 180312,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "BNetToast",
+      "file": "BNetToast.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/BNetToast.zip",
+      "size": 2196,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "BugSack",
+      "file": "BugSack.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/BugSack.zip",
+      "size": 111111,
+      "category": "Utility",
+      "desc": "Collects Lua errors quietly for later review",
+      "recommended": false
+    },
+    {
+      "name": "Cheese",
+      "file": "Cheese.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Cheese.zip",
+      "size": 900178,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "ColorPickerAdvanced",
+      "file": "ColorPickerAdvanced.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ColorPickerAdvanced.zip",
+      "size": 137477,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "DocsCorporeality_r3",
+      "file": "DocsCorporeality_r3.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/DocsCorporeality_r3.zip",
+      "size": 19628,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "DressMe",
+      "file": "DressMe.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/DressMe.zip",
+      "size": 2206764,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "ForteXorcist",
+      "file": "ForteXorcist.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/ForteXorcist.zip",
+      "size": 630973,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "HalionHelper",
+      "file": "HalionHelper.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/HalionHelper.zip",
+      "size": 48045,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "KRU",
+      "file": "KRU.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/KRU.zip",
+      "size": 185589,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "MageNuggets",
+      "file": "MageNuggets.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MageNuggets.zip",
+      "size": 561635,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "MerfinPlus",
+      "file": "MerfinPlus.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/MerfinPlus.zip",
+      "size": 3892924,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "PhoenixStyle",
+      "file": "PhoenixStyle.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/PhoenixStyle.zip",
+      "size": 206764,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Plagued",
+      "file": "Plagued.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Plagued.zip",
+      "size": 24617,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Plugins",
+      "file": "Plugins.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Plugins.zip",
+      "size": 2682062,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Quartz",
+      "file": "Quartz.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Quartz.zip",
+      "size": 329076,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "RaitingBuster",
+      "file": "RaitingBuster.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RaitingBuster.zip",
+      "size": 405867,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "Redeemer",
+      "file": "Redeemer.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/Redeemer.zip",
+      "size": 10879,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "RSA",
+      "file": "RSA.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/RSA.zip",
+      "size": 147721,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "SharedMedia",
+      "file": "SharedMedia.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SharedMedia.zip",
+      "size": 21610936,
+      "category": "Utility",
+      "desc": "Shared fonts, textures and sounds (library)",
+      "recommended": false
+    },
+    {
+      "name": "SmartTrack",
+      "file": "SmartTrack.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SmartTrack.zip",
+      "size": 104629,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "SoundAlerter",
+      "file": "SoundAlerter.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SoundAlerter.zip",
+      "size": 16311329,
+      "category": "Utility",
+      "desc": "",
+      "recommended": false
+    },
+    {
+      "name": "SpellID",
+      "file": "SpellID.zip",
+      "url": "https://raw.githubusercontent.com/NoM0Re/WoW-3.3.5a-Addons/main/src/Addons/SpellID.zip",
+      "size": 836,
+      "category": "Utility",
+      "desc": "Shows spell and item IDs in tooltips",
+      "recommended": false
+    }
+  ],
+  "_note": "Only entries with a public download URL ship. Locally vendored addons are per-machine and some were client-specific builds; rebuild your own catalogue with control/build-addon-catalog.py."
+}
