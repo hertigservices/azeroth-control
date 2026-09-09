@@ -82,6 +82,42 @@ existing, so turning `botsAware` on without mod-playerbots changes nothing.
 
 What the Play button runs.
 
+### `world` — optional, for servers that do not start the default way
+
+Omit it entirely and the panel does what it always did: run `authserver.exe` and `worldserver.exe`
+out of `paths.server`, using the `worldserver.conf` next to them.
+
+| Field | What | Why you would set it |
+|---|---|---|
+| `conf` | The config to start worldserver with, passed as `-c`. | One server directory backing two realms that need different settings — a second world on another port, a different `DataDir`, a test realm with Warden off. Without this the binaries silently use the file sitting next to them and the wrong realm comes up. |
+| `logs` | Log directory, overriding `paths.logs`. | A non-default config writes wherever *its* `LogsDir` points. Name the wrong one and the panel reads a world that is up and ready as "maps still loading" forever — the previous run's log is still there and still says `Halting process`. |
+| `authserver` | `false` if this realm has no `authserver.exe`. | Auth served by something else. Starting one anyway takes port 3724 from your other realms to run a process nothing in this profile talks to. |
+| `python` | Interpreter for the helpers below. | Only if the auto-detected one is wrong. |
+| `helpers` | Extra processes to start with the realm. | See below. |
+
+#### `world.helpers`
+
+```json
+"helpers": [
+  { "name": "authshim", "label": "Auth shim", "port": 3724,
+    "script": "realms/myrealm/auth_shim.py", "args": "--verbose" }
+]
+```
+
+Started **after** the world, and only if it came up — on their own they are worse than nothing, since
+an auth helper will happily let a client log in and reach a realm list that has no world behind it,
+which reads as a broken login rather than a world that failed. Stopped on the way out, before the
+database is verified.
+
+A helper is identified by its **port**, not its process name: every one of them is `python.exe`, so a
+name check cannot tell one from another — or from an unrelated script you happen to be running. Give
+each one a `port` and the panel will skip it if it is already listening, wait up to 10 seconds for it
+after launching, show it as its own step on the start progress bar, and stop exactly the right
+process on the way out. A helper with no `port` is started but never waited for or stopped.
+
+Helpers are force-stopped, unlike the servers. They hold no unsaved game state, so there is nothing
+for a graceful signal to flush.
+
 ---
 
 ## `serverManaged`: the field to get right
@@ -142,6 +178,12 @@ Add another entry to `realms[]` with its own slug, paths and databases. Only one
 switching stops the running one gracefully before starting the next. Give each its own MySQL user
 and grant it access only to its own schemas — that way a mistake on a test realm cannot reach the
 one you actually play.
+
+### A realm that starts a different config, or needs a helper process
+
+See [`world`](#world--optional-for-servers-that-do-not-start-the-default-way). In short: `world.conf`
+names the config to pass as `-c`, `world.logs` follows it, `world.authserver: false` covers a realm
+whose auth comes from elsewhere, and `world.helpers[]` lists extra processes to bring up with it.
 
 ### A client with no server
 

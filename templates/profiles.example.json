@@ -1,13 +1,10 @@
 {
   "schema": 1,
   "_contract": "Copy to realms/profiles.json and edit, or let install/detect.py generate it. Paths are relative to the repo root unless absolute. Full field reference in docs/CONFIGURATION.md.",
-
   "activeRealm": "default",
-
   "realms": [
     {
       "_comment": "A server this panel starts and stops itself. The common case on Windows.",
-
       "slug": "default",
       "name": "My Realm",
       "tagline": "WotLK 3.3.5a",
@@ -16,7 +13,6 @@
       "enabled": true,
       "status": "live",
       "accent": "#c9aa71",
-
       "paths": {
         "server": "server",
         "configs": "server/configs",
@@ -26,13 +22,11 @@
         "addons": "client/Interface/AddOns",
         "cache": "client/Cache"
       },
-
       "launch": {
         "kind": "exe",
         "target": "client/Wow.exe",
         "workdir": "client"
       },
-
       "_db_note": "Schema NAMES only. Host, port, user and password are read from this realm's own worldserver.conf at query time, so a moved database or a changed password needs no edit here.",
       "db": {
         "auth": "acore_auth",
@@ -40,20 +34,16 @@
         "characters": "acore_characters",
         "user": "acore"
       },
-
       "controls": {
         "serverManaged": true,
         "phaseAware": false,
         "botsAware": false,
         "addonsAware": true
       },
-
       "notes": "Free text, shown on the Play tab."
     },
-
     {
       "_comment": "A server this panel does NOT own: Docker, systemd, another machine, or a hosting panel. Server/World/Tools disappear; Play, Addons, Reference and Changelog work normally. paths.configs must point at a directory this machine can READ - for Docker, the mounted volume on the host side.",
-
       "slug": "docker",
       "name": "Dockered Realm",
       "tagline": "acore-docker",
@@ -62,7 +52,6 @@
       "enabled": false,
       "status": "live",
       "accent": "#3b82f6",
-
       "paths": {
         "configs": "C:/acore-docker/env/dist/etc",
         "modconfigs": "C:/acore-docker/env/dist/etc/modules",
@@ -71,28 +60,78 @@
         "addons": "C:/WoW335/Interface/AddOns",
         "cache": "C:/WoW335/Cache"
       },
-
       "launch": {
         "kind": "exe",
         "target": "C:/WoW335/Wow.exe",
         "workdir": "C:/WoW335"
       },
-
       "db": {
         "auth": "acore_auth",
         "world": "acore_world",
         "characters": "acore_characters",
         "user": "root"
       },
-
       "controls": {
         "serverManaged": false,
         "phaseAware": false,
         "botsAware": false,
         "addonsAware": true
       },
-
       "notes": "Started with docker compose, not by this panel. If the container maps MySQL to a non-default host port, the mapped port must be what worldserver.conf says - that file is where the panel reads it from."
+    },
+    {
+      "_comment": "A second realm out of the SAME server directory, started against a different config so the two can differ (another port, another DataDir, Warden off). Its auth comes from a helper script rather than authserver.exe. Everything in `world` is optional - omit the block entirely and the panel starts the two servers the normal way. Full reference in docs/CONFIGURATION.md.",
+      "slug": "testrealm",
+      "name": "Test Realm",
+      "tagline": "second config, same binaries",
+      "order": 2,
+      "kind": "realm",
+      "enabled": false,
+      "status": "wip",
+      "accent": "#8b5cf6",
+      "paths": {
+        "server": "server",
+        "configs": "server/configs",
+        "modconfigs": "server/configs/modules",
+        "client": "client",
+        "addons": "client/Interface/AddOns",
+        "cache": "client/Cache"
+      },
+      "world": {
+        "conf": "server/configs/worldserver-test.conf",
+        "_logs_note": "That config's own LogsDir - NOT paths.logs. Readiness is judged from the log this world actually writes; name the wrong one and a ready world reads as still loading, forever.",
+        "logs": "server/logs-test",
+        "_authserver_note": "false = this realm has no authserver.exe. Starting one would take 3724 from the other realms for a process nothing here talks to.",
+        "authserver": false,
+        "helpers": [
+          {
+            "name": "authshim",
+            "label": "Auth shim",
+            "_port_note": "Identity is the PORT, not the process name - every helper is python.exe. With a port the panel skips it if already up, waits 10s for it, gives it a step on the progress bar, and stops the right pid on the way out.",
+            "port": 3724,
+            "script": "realms/testrealm/auth_shim.py",
+            "args": ""
+          }
+        ]
+      },
+      "launch": {
+        "kind": "exe",
+        "target": "client/Wow.exe",
+        "workdir": "client"
+      },
+      "db": {
+        "auth": "acore_auth",
+        "world": "acore_world",
+        "characters": "acore_characters",
+        "user": "acore"
+      },
+      "controls": {
+        "serverManaged": true,
+        "phaseAware": false,
+        "botsAware": false,
+        "addonsAware": true
+      },
+      "notes": "Helpers start after the world and only if it came up; they are stopped first on the way out."
     }
   ]
 }

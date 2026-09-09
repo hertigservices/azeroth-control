@@ -28,6 +28,7 @@ the same contract launcher.py uses.
 import json
 import os
 import re
+import shutil
 import subprocess
 import time
 
@@ -100,12 +101,78 @@ def server_dir(realm):
 
 def log_dir(realm):
     paths = realm.get('paths') or {}
-    return hub(paths.get('logs')) or os.path.join(server_dir(realm) or '', 'logs')
+    world = realm.get('world') or {}
+    # world.logs wins: a profile that starts a non-default config writes wherever
+    # that config's LogsDir points, and readiness is judged from that file. Naming
+    # the wrong directory does not fail loudly - the previous run's 'Halting
+    # process' is still sitting in the other log, so the panel reads a world that
+    # is up and ready as "maps still loading" forever.
+    return (hub(world.get('logs')) or hub(paths.get('logs'))
+            or os.path.join(server_dir(realm) or '', 'logs'))
 
 
 def conf_dir(realm):
     paths = realm.get('paths') or {}
     return hub(paths.get('configs')) or os.path.join(server_dir(realm) or '', 'configs')
+
+
+def world_conf(realm):
+    """The config worldserver is actually started with.
+
+    Defaults to the profile's own configs/worldserver.conf. A profile may name a
+    different file instead, which is how one server directory can back two realms
+    that need different settings - a second world on another port so it can run
+    beside the first, a DataDir pointing at a different extraction, or a test
+    realm with Warden and the overspeed kick turned off. Without this the binaries
+    silently use the config sitting next to them, and the realm comes up as the
+    wrong one.
+    """
+    world = realm.get('world') or {}
+    return hub(world.get('conf')) or os.path.join(conf_dir(realm) or '', 'worldserver.conf')
+
+
+def python_exe(realm):
+    """Interpreter for this profile's helper scripts, or None if none is found.
+
+    Deliberately NOT sys.executable: when the panel runs from the frozen exe,
+    sys.executable IS that exe, so using it would relaunch the panel rather than
+    run a script.
+    """
+    world = realm.get('world') or {}
+    named = hub(world.get('python'))
+    if named and os.path.exists(named):
+        return named
+    found = []
+    # A per-user install is often absent from the PATH a detached process
+    # inherits, so look where the official Windows installer puts it, newest
+    # first, before falling back to PATH.
+    base = os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Python')
+    if os.path.isdir(base):
+        found += [os.path.join(base, d, 'python.exe')
+                  for d in sorted(os.listdir(base), reverse=True)]
+    found += [shutil.which('python'), shutil.which('py')]
+    # WindowsApps holds a stub that opens the Microsoft Store instead of running
+    # anything, and it is on PATH by default. Spawning it looks like a launch that
+    # worked and never listens on the port.
+    return next((c for c in found
+                 if c and 'WindowsApps' not in c and os.path.exists(c)), None)
+
+
+def helpers(realm):
+    """Extra processes this profile's realm needs, beside the two servers."""
+    return (realm.get('world') or {}).get('helpers') or []
+
+
+def _pid_on_port(port):
+    """PID of whatever is listening on `port`, or None."""
+    _rc, out = C.ps("(Get-NetTCPConnection -LocalPort %d -State Listen "
+                    "-ErrorAction SilentlyContinue | Select-Object -First 1)"
+                    ".OwningProcess" % port)
+    for line in reversed((out or '').strip().splitlines()):
+        line = line.strip()
+        if line.isdigit():
+            return int(line)
+    return None
 
 
 # ---------------------------------------------------------------- database
@@ -195,8 +262,7 @@ def ready(realm):
             return False
     if not C.running('worldserver')['up']:
         return False
-    port = C.conf_get(os.path.join(conf_dir(realm) or '', 'worldserver.conf'),
-                      'WorldServerPort') or 8085
+    port = C.conf_get(world_conf(realm), 'WorldServerPort') or 8085
     return C.port_open(port)
 
 
@@ -225,8 +291,9 @@ def verify_saved(realm, emit=_noop):
 def stop_realm(realm, emit=_noop):
     """Graceful stop of whichever realm owns the ports. Never force-kills.
 
-    `realm` is only used to decide which database to verify against - the
-    processes are found by name, and only one realm can be running.
+    The two servers are found by name, since only one realm can be running.
+    `realm` decides which database to verify against and which helper scripts
+    belong to it - a profile with none is unaffected.
     """
     for name in ('worldserver', 'authserver'):
         if not C.running(name)['up']:
@@ -234,6 +301,7 @@ def stop_realm(realm, emit=_noop):
             continue
         emit(C.stop_graceful(name, wait_s=300 if name == 'worldserver' else 60))
     if realm:
+        stop_helpers(realm, emit)
         verify_saved(realm, emit)
 
 
@@ -255,8 +323,18 @@ def start_realm(realm, emit=_noop):
     if os.path.isfile(os.path.join(conf_dir(realm), 'modules', 'mod_ollama_chat.conf')):
         emit(C.start_ollama())
 
+    world = realm.get('world') or {}
+
+    # A profile whose auth is served by a helper has no authserver.exe to start.
+    # Starting one anyway would take 3724 from the other realms to run a process
+    # nothing in this profile talks to.
+    names = ['authserver', 'worldserver']
+    if world.get('authserver') is False:
+        names.remove('authserver')
+        emit('authserver: not used by this profile - auth is served by a helper')
+
     ok = True
-    for name in ('authserver', 'worldserver'):
+    for name in names:
         exe = os.path.join(srv, name + '.exe')
         if not os.path.exists(exe):
             emit('%s: EXE MISSING (%s)' % (name, exe))
@@ -265,6 +343,7 @@ def start_realm(realm, emit=_noop):
         if C.running(name)['up']:
             emit('%s: already running' % name)
             continue
+        args = ''
         if name == 'worldserver':
             # Readiness is judged from this file, and a stale one from the last
             # run reads as "ready" for a server that has not started yet.
@@ -272,7 +351,18 @@ def start_realm(realm, emit=_noop):
                 os.remove(os.path.join(log_dir(realm), 'Server.log'))
             except Exception:
                 pass
-        spawned, detail = C.spawn_detached(exe, srv)
+            conf = world_conf(realm)
+            if world.get('conf'):
+                if not os.path.exists(conf):
+                    emit('worldserver: CONFIG MISSING (%s)' % conf)
+                    ok = False
+                    continue
+                # Passed explicitly rather than relied on by name: worldserver
+                # defaults to configs/worldserver.conf next to the exe, which for
+                # this profile is the config it must NOT use.
+                args = '-c "%s"' % conf
+                emit('worldserver: config %s' % conf)
+        spawned, detail = C.spawn_detached(exe, srv, args=args)
         emit('%s: %s (%s)' % (name, 'launched' if spawned else 'FAILED TO LAUNCH', detail))
         if spawned:
             # A worldserver that dies during "Initialize Data Stores" - a missing
@@ -285,7 +375,73 @@ def start_realm(realm, emit=_noop):
                      % (name, os.path.join(log_dir(realm) or srv, 'Server.log')))
                 spawned = False
         ok = ok and spawned
+
+    # Helpers last, and only if the world came up. Started on their own they are
+    # worse than nothing: an auth helper would let the client log in and reach the
+    # realm list, and whatever sits behind it would then find no world and drop
+    # the session - which reads as a broken login rather than a world that failed.
+    if ok and helpers(realm):
+        ok = start_helpers(realm, emit) and ok
     return ok
+
+
+def start_helpers(realm, emit=_noop):
+    """Start this profile's helper scripts, skipping any already listening."""
+    py = python_exe(realm)
+    if not py:
+        emit('helpers: NO PYTHON FOUND - cannot start %s'
+             % ', '.join(h.get('name', '?') for h in helpers(realm)))
+        return False
+    ok = True
+    for h in helpers(realm):
+        name = h.get('label') or h.get('name') or '?'
+        port = h.get('port')
+        script = hub(h.get('script'))
+        if not script or not os.path.exists(script):
+            emit('%s: SCRIPT MISSING (%s)' % (name, script))
+            ok = False
+            continue
+        # Identity is the port, not the process name: every helper is python.exe,
+        # so a name check cannot tell one from another - or from an unrelated
+        # script the user happens to be running.
+        if port and C.port_open(port):
+            emit('%s: already listening on %d' % (name, port))
+            continue
+        args = '"%s"' % script
+        if h.get('args'):
+            args += ' ' + h['args']
+        spawned, detail = C.spawn_detached(py, os.path.dirname(script), args=args)
+        emit('%s: %s (%s)' % (name, 'launched' if spawned else 'FAILED TO LAUNCH', detail))
+        if spawned and port:
+            for _ in range(10):
+                time.sleep(1)
+                if C.port_open(port):
+                    break
+            else:
+                emit('%s: WARNING - not listening on %d after 10s' % (name, port))
+                spawned = False
+        ok = ok and spawned
+    return ok
+
+
+def stop_helpers(realm, emit=_noop):
+    """Stop this profile's helper scripts.
+
+    Force-stopped, unlike the servers: these hold no unsaved game state, so there
+    is nothing for a graceful signal to flush. They are stopped on the way out
+    because a helper left running after its world is gone can still accept a
+    connection and then drop it, which is a far more confusing failure than a
+    refused one.
+    """
+    for h in helpers(realm):
+        name = h.get('label') or h.get('name') or '?'
+        port = h.get('port')
+        pid = _pid_on_port(port) if port else None
+        if not pid:
+            emit('%s: not running' % name)
+            continue
+        C.ps('Stop-Process -Id %d -Force -ErrorAction SilentlyContinue' % pid)
+        emit('%s: stopped (pid %d)' % (name, pid))
 
 
 def switch_to(slug, emit=_noop):

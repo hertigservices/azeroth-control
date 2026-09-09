@@ -440,6 +440,21 @@ def job_latest(slug):
 # Built per profile, because "world ready" has to be judged from THAT profile's
 # log and config; a shared lambda would watch the vanilla realm every time.
 def _start_steps(realm):
+    world = realm.get('world') or {}
+    if world.get('authserver') is False:
+        # This profile has no authserver.exe - a helper serves auth instead - so
+        # watching for the exe would park the bar at 40% for the whole start. Its
+        # helpers are watched by port in the order start_realm reaches them,
+        # which is after the world.
+        steps = [('MySQL', 20, lambda: C.mysql_alive()),
+                 ('World server', 40, lambda: C.running('worldserver')['up'])]
+        listed = [h for h in R.helpers(realm) if h.get('port')]
+        for i, h in enumerate(listed):
+            steps.append((h.get('label') or h.get('name') or 'Helper',
+                          50 + int(30.0 * (i + 1) / (len(listed) + 1)),
+                          lambda p=h['port']: C.port_open(p)))
+        steps.append(('World ready', 95, lambda: R.ready(realm)))
+        return steps
     return [
         ('MySQL',        20, lambda: C.mysql_alive()),
         ('Auth server',  40, lambda: C.running('authserver')['up']),
