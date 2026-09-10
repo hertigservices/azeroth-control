@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "component": "azeroth-control",
+  "files": [
+    {
+      "source": "control/build-addon-catalog.py",
+      "destination": "control/build-addon-catalog.py"
+    },
+    {
+      "source": "control/control.py",
+      "destination": "control/control.py"
+    },
+    {
+      "source": "control/launcher.html",
+      "destination": "control/launcher.html"
+    },
+    {
+      "source": "control/launcher.py",
+      "destination": "control/launcher.py"
+    },
+    {
+      "source": "control/launcher_app.py",
+      "destination": "control/launcher_app.py"
+    },
+    {
+      "source": "control/modules.py",
+      "destination": "control/modules.py"
+    },
+    {
+      "source": "control/panel.py",
+      "destination": "control/panel.py"
+    },
+    {
+      "source": "control/realms.py",
+      "destination": "control/realms.py"
+    },
+    {
+      "source": "control/status.py",
+      "destination": "control/status.py"
+    },
+    {
+      "source": "control/ui.html",
+      "destination": "control/ui.html"
+    },
+    {
+      "source": "tools/module-sync.ps1",
+      "destination": "tools/module-sync.ps1"
+    },
+    {
+      "source": "tools/rebuild.ps1",
+      "destination": "tools/rebuild.ps1"
+    },
+    {
+      "source": "tools/switch-realm.py",
+      "destination": "tools/switch-realm.py"
+    }
+  ]
+}

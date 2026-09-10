@@ -486,7 +486,7 @@ Add-Type -Namespace AzCtl -Name C -MemberDefinition @'
 [DllImport("kernel32.dll", SetLastError=true)] public static extern bool GenerateConsoleCtrlEvent(uint e, uint g);
 [DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetConsoleCtrlHandler(IntPtr h, bool a);
 '@
-$p = Get-Process -Name '__NAME__' -ErrorAction SilentlyContinue
+$p = Get-Process -Id __PID__ -ErrorAction SilentlyContinue
 if(-not $p){ 'NOTRUNNING'; exit }
 [void][AzCtl.C]::FreeConsole()
 if(-not [AzCtl.C]::AttachConsole([uint32]$p.Id)){ [void][AzCtl.C]::FreeConsole(); 'NOCONSOLE'; exit }
@@ -2184,6 +2184,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *a, **kw):
         super().__init__(*a, directory=HERE, **kw)
 
+    def translate_path(self, path):
+        route = urllib.parse.unquote(urllib.parse.urlparse(path).path)
+        if re.fullmatch(r"/refdata(?:-[A-Za-z0-9_-]+)?\.json", route):
+            return os.path.join(STATE_HERE, route[1:])
+        return super().translate_path(path)
+
     def log_message(self, *a):
         pass
 
@@ -2224,6 +2230,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._json(bots_state())
         if u.path in ('/', '/index.html'):
             self.path = '/ui.html'
+        route = urllib.parse.unquote(urllib.parse.urlparse(self.path).path)
+        if route not in ('/ui.html', '/launcher.html', '/addons_catalog.json') and not re.fullmatch(
+                r"/refdata(?:-[A-Za-z0-9_-]+)?\.json", route):
+            return self.send_error(404)
         return super().do_GET()
 
     def do_POST(self):

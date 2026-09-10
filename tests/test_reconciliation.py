@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest
+import os, sys, tempfile, unittest, threading, urllib.request, urllib.error, http.server
 from pathlib import Path
 from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "control"))
@@ -21,6 +21,31 @@ class ReconciliationTests(unittest.TestCase):
         with patch.object(C,"running",return_value={"up":False,"others":1}), patch.object(C,"ps") as ps:
             C.stop_graceful("worldserver",exe_dir="some-realm")
             ps.assert_not_called()
+    def test_http_serves_runtime_reference_but_not_private_state(self):
+        with tempfile.TemporaryDirectory() as d, patch.object(C,"STATE_HERE",d):
+            Path(d,"refdata.json").write_text('{"items":[]}')
+            Path(d,"soap.json").write_text('{"password":"fixture"}')
+            server=http.server.ThreadingHTTPServer(("127.0.0.1",0),C.Handler)
+            thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+            try:
+                base="http://127.0.0.1:"+str(server.server_port)
+                with urllib.request.urlopen(base+"/refdata.json") as response:
+                    self.assertEqual(response.read(),b'{"items":[]}')
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    urllib.request.urlopen(base+"/soap.json")
+                self.assertEqual(error.exception.code,404)
+                error.exception.close()
+            finally:
+                server.shutdown();server.server_close();thread.join()
+
+    def test_graceful_signal_uses_scoped_pid(self):
+        with patch.object(C,"running",return_value={"up":True,"pid":987}), patch.object(C,"ps") as ps:
+            C.stop_graceful("worldserver",wait_s=0,exe_dir="some-realm")
+        command=ps.call_args.args[0]
+        self.assertIn("Get-Process -Id 987",command)
+        self.assertNotIn("__NAME__",command)
+        self.assertNotIn("__PID__",command)
+
     def test_config_supplies_host_port_and_credentials(self):
         with tempfile.TemporaryDirectory() as d:
             conf=Path(d)/"custom.conf"

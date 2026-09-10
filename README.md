@@ -1,5 +1,7 @@
 # Azeroth Control
 
+Canonical source for the multi-realm launcher and panel. [Ecosystem and deployment](docs/ECOSYSTEM.md) · [Unified setup](https://github.com/hertigservices/Ascension_preservation/blob/main/docs/SETUP.md).
+
 A local control panel and launcher for your own [AzerothCore](https://www.azerothcore.org/) 3.3.5a server.
 
 Start and stop the realm, tune rates and module settings without hand-editing `.conf` files, install
