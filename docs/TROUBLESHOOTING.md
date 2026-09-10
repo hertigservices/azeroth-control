@@ -154,6 +154,36 @@ The page loaded but `control.py` is not answering. Either it is not running, or 
 set AZCTL_PORT=9000 && python control/control.py
 ```
 
+### The panel serves old code after you restarted it
+
+Symptoms: a fix to `control\*.py` has no effect; the launcher shows behaviour that was
+replaced on disk; refreshing gives an answer that alternates between the old and the new one.
+
+`Get-NetTCPConnection -LocalPort 8750 -State Listen` names the process that is really serving
+the page. Two causes, often together:
+
+- **The panel you restarted was not the one listening.** A panel started from inside `control\`
+  as `python control.py` has a different command line from the tray's
+  `pythonw C:\...\control\control.py`, so anything matching on the command line missed it.
+- **Two panels can listen at once.** Python's `HTTPServer` sets `SO_REUSEADDR`, and Windows
+  lets a second process bind 8750 while the first still holds it. Connections then land on
+  either, which is why the answers alternate.
+
+Fix it from the tray: **Restart hub (control panel)**. It finds the owner *by port* rather
+than by command line, adds any other `control.py` it can see, names them in the confirmation
+dialog, waits for the port to come free, and starts nothing at all if something still holds
+it — rather than adding a second listener and reporting success. By hand:
+
+```powershell
+Get-NetTCPConnection -LocalPort 8750 -State Listen |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+Start-Process pythonw.exe control\control.py -WorkingDirectory control -WindowStyle Hidden
+Get-NetTCPConnection -LocalPort 8750 -State Listen   # expect exactly ONE
+```
+
+Restarting the panel does not touch the realm: the server, MySQL and anyone online keep
+running.
+
 ### The panel shows the realm down while it is plainly up
 
 The panel is reading a **different `worldserver.conf`** than the one the server started with. Check

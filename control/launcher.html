@@ -109,6 +109,18 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 .realm .rs{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--foreground-dim)}
 .realm[aria-current="true"] .rn{color:var(--primary)}
 
+/* a nested realm is a MODE of the one above it - same client, same binaries,
+   a different worldserver conf - so it hangs off the parent instead of
+   standing beside it as if it were a separate stack */
+.realm.nested{padding-left:1.9rem;position:relative}
+.realm.nested::before{content:'';position:absolute;left:1.15rem;top:-.3rem;bottom:50%;
+  width:1px;background:rgba(255,255,255,.14)}
+.realm.nested::after{content:'';position:absolute;left:1.15rem;top:50%;width:.5rem;height:1px;
+  background:rgba(255,255,255,.14)}
+.realm.nested .crest{width:1.7rem;height:1.7rem;font-size:.78rem;border-radius:.4rem}
+.realm.nested .rn{font-size:12.5px;font-weight:500}
+.realm.nested .rs{font-size:9.5px}
+
 .main{min-width:0;overflow-y:auto;position:relative}
 .view{display:none}
 .view.on{display:block}
@@ -654,8 +666,9 @@ function renderRail(){
   var realms = $('realmlist'), clients = $('clientlist');
   realms.innerHTML = ''; clients.innerHTML = '';
   var nr = 0;
-  S.products.forEach(function(p){
-    var b = el('button','realm' + (p.installed ? '' : ' dim'));
+
+  function card(p, nested){
+    var b = el('button','realm' + (p.installed ? '' : ' dim') + (nested ? ' nested' : ''));
     b.type = 'button';
     b.setAttribute('aria-current', p.slug === S.sel ? 'true' : 'false');
     var crest = el('div','crest', (p.name || p.slug).charAt(0).toUpperCase());
@@ -668,9 +681,33 @@ function renderRail(){
     t.appendChild(el('div','rs', sub));
     b.appendChild(t);
     if (p.serverUp) { var d = el('span','dot on'); b.appendChild(d); }
+    // The rail is narrow and .rn ellipsises; two profiles can share a prefix
+    // ('Conquest of Azeroth' / 'Conquest of Azeroth (stock client)'), so the full
+    // name has to be reachable somewhere.
+    b.title = p.name + (p.tagline ? '  —  ' + p.tagline : '');
     b.onclick = function(){ select(p.slug); };
-    if (p.kind === 'client') clients.appendChild(b);
-    else { realms.appendChild(b); nr++; }
+    return b;
+  }
+
+  // A child whose parent is missing from the list is drawn at the top level, so a
+  // typo in `nestedUnder` cannot make a profile disappear from the launcher.
+  var have = {}, kids = {};
+  S.products.forEach(function(p){ have[p.slug] = true; });
+  S.products.forEach(function(p){
+    if (p.nestedUnder && have[p.nestedUnder]) {
+      (kids[p.nestedUnder] = kids[p.nestedUnder] || []).push(p);
+    }
+  });
+
+  S.products.forEach(function(p){
+    if (p.nestedUnder && have[p.nestedUnder]) return;   // drawn under its parent
+    var group = p.kind === 'client' ? clients : realms;
+    group.appendChild(card(p, false));
+    if (p.kind !== 'client') nr++;
+    (kids[p.slug] || []).forEach(function(c){
+      (c.kind === 'client' ? clients : group).appendChild(card(c, true));
+      if (c.kind !== 'client') nr++;
+    });
   });
   $('realmcount').textContent = nr;
 }
@@ -691,7 +728,12 @@ function heroFor(p){
   h.style.setProperty('--a', p.accent || '#c9aa71');
   h.appendChild(el('div','art'));
   var inner = el('div','inner');
-  inner.appendChild(el('div','eyebrow', p.kind === 'client' ? 'Alternate client' : 'Realm'));
+  var eyebrow = p.kind === 'client' ? 'Alternate client' : 'Realm';
+  if (p.nestedUnder) {
+    var par = S.products.filter(function(q){ return q.slug === p.nestedUnder; })[0];
+    if (par) eyebrow += '  ·  a mode of ' + par.name;
+  }
+  inner.appendChild(el('div','eyebrow', eyebrow));
   inner.appendChild(el('h1','display', p.name));
   inner.appendChild(el('p', null, p.tagline || ''));
   var badges = el('div','badges');

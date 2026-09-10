@@ -82,6 +82,36 @@ existing, so turning `botsAware` on without mod-playerbots changes nothing.
 
 What the Play button runs.
 
+### `nestedUnder` — optional, for a second mode of the same server
+
+```json
+"slug": "freepick", "nestedUnder": "coa"
+```
+
+Presentation only. It says *this profile is another mode of that one*: the same client, the
+same `paths.server`, the same binaries — started against a different `world.conf`, usually
+with its own characters database. The child draws indented under its parent in the rail
+instead of standing beside it as if it were a separate stack, and its Play page says
+"a mode of ‹parent›" above the title.
+
+Nothing is merged. The child keeps its own slug, ports, databases, Play button and Switch;
+only where it is drawn changes.
+
+The shape comes up constantly on Ascension-style servers, where one build serves several
+game modes — a classless Free-Pick realm and a Conquest of Azeroth realm out of one
+`server/` directory, one client, one auth database, taking turns on the worldserver. Two
+top-level entries make that look like two installs; nesting says what it is.
+
+Details worth knowing:
+
+- The rail hoists a child to its parent whatever `order` says, so renumbering cannot break
+  the nesting. Everything else that lists realms is still flat and sorted by `order`, so
+  give a pair adjacent numbers — a fractional one (`3` and `3.5`) does that without
+  renumbering the realms after it.
+- A child whose parent slug is not in the list is drawn at the top level rather than
+  vanishing: a typo cannot hide a realm.
+- Nesting is one level deep. A child's own children are not drawn.
+
 ### `world` — optional, for servers that do not start the default way
 
 Omit it entirely and the panel does what it always did: run `authserver.exe` and `worldserver.exe`
@@ -184,6 +214,13 @@ one you actually play.
 See [`world`](#world--optional-for-servers-that-do-not-start-the-default-way). In short: `world.conf`
 names the config to pass as `-c`, `world.logs` follows it, `world.authserver: false` covers a realm
 whose auth comes from elsewhere, and `world.helpers[]` lists extra processes to bring up with it.
+
+### Two modes of one server
+
+One `server/` directory, two configs, two characters databases — the pattern in
+[`world`](#world--optional-for-servers-that-do-not-start-the-default-way). Add
+[`nestedUnder`](#nestedunder--optional-for-a-second-mode-of-the-same-server) to the second
+profile and the rail draws it under the first instead of beside it.
 
 ### A client with no server
 

@@ -26,6 +26,7 @@ $HUB     = if ($env:AZCTL_HOME) { $env:AZCTL_HOME } else { Split-Path -Parent $P
 $CONTROL = Join-Path $HUB 'control'
 $WOW     = Join-Path $HUB 'client\Wow.exe'
 $PANEL   = 'http://127.0.0.1:8750/'
+$PANELPORT = 8750
 $LAUNCHER = $PANEL + 'launcher'      # the realm picker / switcher front end
 $LAUNCHER_EXE = Join-Path $HUB 'app\AzerothControl\AzerothControl.exe'
 $LOG     = Join-Path $HUB 'logs\tray.log'
@@ -58,7 +59,11 @@ function PanelHas($route){
 }
 function PanelProc(){
   Get-CimInstance Win32_Process -Filter "Name='pythonw.exe' OR Name='python.exe'" |
-    Where-Object { $_.CommandLine -like '*control?control.py*' }
+    # Match the script name however the panel was started: `pythonw C:\...\control\control.py`
+    # from this tray, or `py -3 control.py` / `python control.py` from inside control\.
+    # The old '*control?control.py*' pattern missed the second form, so a panel started
+    # that way was invisible here and a second one could bind 8750 beside it.
+    Where-Object { $_.CommandLine -match '(^|[\\/ "])control\.py(\s|"|$)' }
 }
 function PanelStale(){
   # A panel process serves whatever it imported at startup, so one left running
@@ -72,6 +77,83 @@ function PanelStale(){
   if(-not $newest){ return $false }
   return ($newest.LastWriteTime -gt $p.CreationDate)
 }
+function PanelPortProc(){
+  # Whoever actually HOLDS the port, however it was started: `pythonw control.py`
+  # from this tray, `python control.py` from a shell, or the packaged window hosting
+  # the panel itself. A restart that only kills command-line matches leaves a
+  # window-hosted panel on the port and reports success having changed nothing.
+  try {
+    Get-NetTCPConnection -LocalPort $PANELPORT -State Listen -ErrorAction Stop |
+      Select-Object -ExpandProperty OwningProcess -Unique |
+      ForEach-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue }
+  } catch { return @() }
+}
+
+function RestartPanel(){
+  # Stop every panel this box can see - the port's owner AND any other control.py,
+  # because Python's HTTPServer sets SO_REUSEADDR and Windows will happily let a
+  # second process bind the port beside the first; requests then land on either.
+  $procs = @()
+  $procs += PanelPortProc
+  $procs += (PanelProc | ForEach-Object { Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue })
+  $procs = @($procs | Where-Object { $_ } | Sort-Object Id -Unique)
+
+  if($procs.Count -eq 0){
+    Log 'hub restart: nothing running, starting one'
+    EnsurePanel
+    if(PanelUp){
+      $ni.ShowBalloonTip(4000,'Azeroth Control','Control panel started.',
+        [System.Windows.Forms.ToolTipIcon]::Info)
+    } else {
+      $ni.ShowBalloonTip(6000,'Azeroth Control','The control panel did not come up - see logs\tray.log.',
+        [System.Windows.Forms.ToolTipIcon]::Warning)
+    }
+    return
+  }
+
+  $names = ($procs | ForEach-Object { '{0} (pid {1})' -f $_.ProcessName, $_.Id }) -join ', '
+  $ans = [System.Windows.Forms.MessageBox]::Show(
+    "Restart the control panel?`n`nStopping: $names`n`nThe realm, MySQL and everyone's " +
+    "characters keep running untouched. A launcher window open on the panel will " +
+    "need reopening.",
+    'Azeroth Control', [System.Windows.Forms.MessageBoxButtons]::YesNo,
+    [System.Windows.Forms.MessageBoxIcon]::Question)
+  if($ans -ne [System.Windows.Forms.DialogResult]::Yes){ return }
+
+  Log ("hub restart: stopping " + $names)
+  foreach($p in $procs){
+    try { Stop-Process -Id $p.Id -Force -ErrorAction Stop } catch { Log ("hub restart: " + $_.Exception.Message) }
+  }
+
+  # The port outlives the process for a moment; starting into a held port is the
+  # failure that looks like "it did not restart properly".
+  for($i=0; $i -lt 25; $i++){
+    if(@(PanelPortProc).Count -eq 0){ break }
+    Start-Sleep -Milliseconds 400
+  }
+  if(@(PanelPortProc).Count -gt 0){
+    Log 'hub restart: port still held, not starting a second panel'
+    $ni.ShowBalloonTip(7000,'Azeroth Control',
+      "Something is still holding port $PANELPORT, so no new panel was started - see logs\tray.log.",
+      [System.Windows.Forms.ToolTipIcon]::Warning)
+    return
+  }
+
+  Start-Process -FilePath $PYW -ArgumentList (Join-Path $CONTROL 'control.py') `
+                -WorkingDirectory $CONTROL -WindowStyle Hidden
+  for($i=0; $i -lt 25; $i++){ Start-Sleep -Milliseconds 600; if(PanelUp){ break } }
+  if(PanelUp){
+    Log 'hub restart: panel is back up'
+    $ni.ShowBalloonTip(4000,'Azeroth Control','Control panel restarted.',
+      [System.Windows.Forms.ToolTipIcon]::Info)
+  } else {
+    Log 'hub restart: panel did not answer after starting'
+    $ni.ShowBalloonTip(7000,'Azeroth Control',
+      'The control panel did not answer after restarting - see logs\tray.log.',
+      [System.Windows.Forms.ToolTipIcon]::Warning)
+  }
+}
+
 function EnsurePanel(){
   if(PanelUp){ return }
   # pythonw.exe has no console at all, so the panel leaves nothing on screen.
@@ -212,6 +294,13 @@ function AddItem($text, $action){
   # action_stop.py stops the ACTIVE realm's servers, then MySQL via a clean
   # mysqladmin shutdown, and Ollama too - never a force kill.
   RunAction 'action_stop.py'
+})
+
+[void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+[void](AddItem 'Restart hub (control panel)' {
+  Log 'menu: restart hub'
+  RestartPanel
 })
 
 [void]$menu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))

@@ -89,6 +89,8 @@
       "enabled": false,
       "status": "wip",
       "accent": "#8b5cf6",
+      "_nested_note": "Presentation only: this profile is another MODE of `default` - same binaries, different config - so the rail draws it indented under that one instead of beside it. Remove the key to make it a top-level entry.",
+      "nestedUnder": "default",
       "paths": {
         "server": "server",
         "configs": "server/configs",

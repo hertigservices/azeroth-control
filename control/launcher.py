@@ -188,6 +188,9 @@ def products():
             'builder': r.get('builder', {}),
             'serverManaged': managed,
             'sharesRealm': shares,
+            # Presentation only: this profile is a MODE of another one (same client,
+            # same binaries, different worldserver conf) and draws under it in the rail.
+            'nestedUnder': r.get('nestedUnder'),
             'playable': bool(inst and tgt and os.path.exists(tgt)),
             'launchTarget': tgt,
             'serverUp': up,
