@@ -394,7 +394,7 @@ def population(c):
 
 def _soap_cfg(c):
     for fn in ('soap-%s.json' % c['slug'], 'soap.json'):
-        p = os.path.join(C.HERE, fn)
+        p = os.path.join(C.STATE_HERE, fn)
         if os.path.isfile(p):
             try:
                 import json

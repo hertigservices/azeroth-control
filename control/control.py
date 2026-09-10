@@ -12,7 +12,8 @@ C:\\Program Files. Move the hub anywhere and this still works.
 import http.server, socketserver, json, os, re, socket, subprocess, threading, time, urllib.parse, shutil
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
+ROOT = os.path.abspath(os.environ.get('AZCTL_HOME') or os.path.dirname(HERE))
+STATE_HERE = os.path.join(ROOT, 'control')
 SERVER_DIR = os.path.join(ROOT, 'server')
 LOG_DIR = os.path.join(SERVER_DIR, 'logs')
 CONF_DIR = os.path.join(SERVER_DIR, 'configs')
@@ -771,7 +772,7 @@ def set_phase(name):
 # ---------------- addon manager ----------------
 ADDONS_DIR = os.path.join(ROOT, 'client', 'Interface', 'AddOns')
 CATALOG_FILE = os.path.join(HERE, 'addons_catalog.json')
-LEDGER_FILE = os.path.join(HERE, 'addons_installed.json')
+LEDGER_FILE = os.path.join(STATE_HERE, 'addons_installed.json')
 
 
 def _ledger():
@@ -937,7 +938,7 @@ def addon_remove(name, dest=None):
 
 
 # ---------------- trainer (GM commands) ----------------
-SOAP_CFG = os.path.join(HERE, 'soap.json')
+SOAP_CFG = os.path.join(STATE_HERE, 'soap.json')
 
 
 def soap_conf():

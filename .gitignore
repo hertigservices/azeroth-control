@@ -44,3 +44,9 @@ desktop.ini
 *.bak-*
 *.orig
 *.pre-*
+
+# All realm-specific secrets and deployment state
+/control/soap-*.json
+/realms/*/modules.json
+/runtime.local.json
+/deployments/
