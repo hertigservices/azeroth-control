@@ -11,9 +11,11 @@
 # resolved so the same fight is not re-fought on the next update.
 #
 # Usage
-#   .\module-sync.ps1                      # status for every module
-#   .\module-sync.ps1 -Action Preview -Module mod-playerbots
-#   .\module-sync.ps1 -Action Merge   -Module mod-playerbots
+#   .\module-sync.ps1                                        # status, every module
+#   .\module-sync.ps1 -Action Outstanding -Module mod-playerbots
+#   .\module-sync.ps1 -Action Preview     -Module mod-playerbots
+#   .\module-sync.ps1 -Action Merge       -Module mod-playerbots
+#   .\module-sync.ps1 -Action Decide      -Module mod-playerbots -Commit a773b8c6 -As skipped -Note 'we have our own'
 #
 # Preview is read-only: it reports which upstream commits are pending and, for
 # every file both sides changed, whether the merge would conflict. Run it before
@@ -23,13 +25,17 @@
 # and no compile is in flight. It tags the pre-merge state first, so the escape
 # hatch is always `git reset --hard <tag>`.
 param(
-  [ValidateSet('Status','Preview','Merge')]
+  [ValidateSet('Status','Preview','Merge','Outstanding','Decide')]
   [string]$Action = 'Status',
   [string]$Module,
-  [switch]$NoFetch          # skip the network round trip, report from cached refs
+  [switch]$NoFetch,         # skip the network round trip, report from cached refs
+  [string]$Commit,          # Decide: the upstream commit being ruled on
+  [ValidateSet('taken','skipped')]
+  [string]$As,              # Decide: taken (applied, possibly reworked) or skipped
+  [string]$Note             # Decide: why - this is the part worth having later
 )
 $ErrorActionPreference = 'Continue'
-$HUB  = if ($env:AZCTL_HOME) { $env:AZCTL_HOME } else { Split-Path -Parent $PSScriptRoot }
+$HUB = if ($env:AZCTL_HOME) { $env:AZCTL_HOME } else { Split-Path -Parent $PSScriptRoot }
 $MODS = Join-Path $HUB 'src\modules'
 $CUSTOM = 'realm/custom'
 
@@ -42,7 +48,10 @@ function G { param([string]$repo, [Parameter(ValueFromRemainingArguments)]$rest)
   @($out | Where-Object { $_ -is [string] })
 }
 function G1 { param([string]$repo, [Parameter(ValueFromRemainingArguments)]$rest)
-  $out = G $repo @rest
+  # @() is load-bearing: PowerShell unrolls a one-element array on return, so a
+  # bare $out[0] would index into the STRING and yield its first character -
+  # "14" silently became "1".
+  $out = @(G $repo @rest)
   if ($out.Count -eq 0) { return '' }
   return ([string]$out[0]).Trim()
 }
@@ -51,10 +60,62 @@ function G1 { param([string]$repo, [Parameter(ValueFromRemainingArguments)]$rest
 # ask the remote rather than guessing per module.
 function Upstream-Branch($repo) {
   foreach ($b in 'master','main') {
-    $null = & git -C $repo rev-parse --verify -q "origin/$b" 2>$null
-    if ($LASTEXITCODE -eq 0) { return $b }
+    $sha = G1 $repo rev-parse --verify -q "origin/$b"
+    if ($sha) { return $b }
   }
   return $null
+}
+
+# The decisions ledger.
+#
+# git cherry compares PATCH IDS, which is what lets it recognise a cherry-picked
+# commit as already applied even though its SHA changed. The limit is that a
+# commit we picked and then had to RESOLVE CONFLICTS on has a genuinely different
+# applied diff, so its patch id never matches and it reports as outstanding
+# forever. Same for one we examined and deliberately refused.
+#
+# Recording the decision is the only way to stop those nagging without pretending
+# they were never seen. Lives in .git\ so it is per-clone and never committed.
+function Decided-Path($repo) { Join-Path $repo '.git\module-sync-decided' }
+
+function Read-Decided($repo) {
+  $h = @{}
+  $f = Decided-Path $repo
+  if (-not (Test-Path $f)) { return $h }
+  foreach ($line in @(Get-Content $f -ErrorAction SilentlyContinue)) {
+    if ($line -match '^\s*(#|$)') { continue }
+    if ($line -match '^\s*([0-9a-f]{7,40})\s+(taken|skipped)\s*(.*)$') {
+      $h[$Matches[1]] = @{ How = $Matches[2]; Note = $Matches[3].Trim() }
+    }
+  }
+  return $h
+}
+
+# SHAs are recorded at whatever length was typed, so match on either prefix.
+function Decision-For($decided, $sha) {
+  foreach ($k in $decided.Keys) {
+    if ($sha.StartsWith($k) -or $k.StartsWith($sha)) { return $decided[$k] }
+  }
+  return $null
+}
+
+# Upstream commits whose patch is not in our history AND which we have not ruled
+# on. That count - not "behind" - is what means work is pending.
+function Outstanding-Rows($repo, $ub) {
+  $decided = Read-Decided $repo
+  $rows = @()
+  foreach ($line in @(G $repo cherry HEAD "origin/$ub")) {
+    if ($line -notmatch '^([+-])\s+([0-9a-f]{40})') { continue }
+    $mark = $Matches[1]
+    $sha  = $Matches[2]
+    $rows += [pscustomobject]@{
+      Sha      = $sha
+      Applied  = ($mark -eq '-')            # patch id already in our history
+      Decision = (Decision-For $decided $sha)
+      Subject  = (G1 $repo log -1 --format='%s' $sha)
+    }
+  }
+  return $rows
 }
 
 function Module-Dirs {
@@ -66,25 +127,93 @@ function Build-Running {
 }
 
 function Show-Status {
-  "{0,-30} {1,-14} {2,-7} {3,-8} {4}" -f 'MODULE','BRANCH','DIRTY','BEHIND','UPSTREAM HEAD'
-  "{0,-30} {1,-14} {2,-7} {3,-8} {4}" -f ('-'*30),('-'*14),('-'*7),('-'*8),('-'*20)
+  "{0,-28} {1,-13} {2,-6} {3,-7} {4,-5} {5}" -f 'MODULE','BRANCH','DIRTY','BEHIND','TODO','UPSTREAM HEAD'
+  "{0,-28} {1,-13} {2,-6} {3,-7} {4,-5} {5}" -f ('-'*28),('-'*13),('-'*6),('-'*7),('-'*5),('-'*20)
   foreach ($m in Module-Dirs) {
     $r = $m.FullName
-    $branch = (& git -C $r rev-parse --abbrev-ref HEAD).Trim()
-    $dirty  = @(& git -C $r status --porcelain).Count
+    $branch = G1 $r rev-parse --abbrev-ref HEAD
+    $dirty  = @(G $r status --porcelain).Count
     $ub = Upstream-Branch $r
     if (-not $ub) {
-      "{0,-30} {1,-14} {2,-7} {3,-8} {4}" -f $m.Name,$branch,$dirty,'-','(no remote - local only)'
+      "{0,-28} {1,-13} {2,-6} {3,-7} {4,-5} {5}" -f $m.Name,$branch,$dirty,'-','-','(no remote - local only)'
       continue
     }
-    if (-not $NoFetch) { $null = & git -C $r fetch origin $ub --quiet 2>$null }
-    $behind = (& git -C $r rev-list --count "HEAD..origin/$ub").Trim()
-    $head   = (& git -C $r log -1 --format='%h %ad %s' --date=short "origin/$ub").Trim()
-    if ($head.Length -gt 46) { $head = $head.Substring(0,46) + '...' }
-    "{0,-30} {1,-14} {2,-7} {3,-8} {4}" -f $m.Name,$branch,$dirty,$behind,$head
+    if (-not $NoFetch) { $null = G $r fetch origin $ub --quiet }
+    $behind = G1 $r rev-list --count "HEAD..origin/$ub"
+    # BEHIND counts SHAs, so it never drops after a cherry-pick. TODO counts what
+    # is genuinely unapplied and undecided - that is the trustworthy figure.
+    $rows = @(Outstanding-Rows $r $ub)
+    $todo = @($rows | Where-Object { -not $_.Applied -and -not $_.Decision }).Count
+    $head = G1 $r log -1 --format='%h %ad %s' --date=short "origin/$ub"
+    if ($head.Length -gt 40) { $head = $head.Substring(0,40) + '...' }
+    "{0,-28} {1,-13} {2,-6} {3,-7} {4,-5} {5}" -f $m.Name,$branch,$dirty,$behind,$todo,$head
   }
   ""
-  "Behind > 0 with local commits on $CUSTOM means: run -Action Preview before touching it."
+  "TODO is the number that matters: upstream commits neither applied nor ruled on."
+  "BEHIND counts SHAs and does not fall after a cherry-pick, so it overstates the work."
+  "  .\module-sync.ps1 -Action Outstanding -Module <mod>   # what TODO is counting"
+  "  .\module-sync.ps1 -Action Preview     -Module <mod>   # conflict forecast"
+}
+
+function Show-Outstanding($name) {
+  $r = Join-Path $MODS $name
+  if (-not (Test-Path (Join-Path $r '.git'))) { "no git repo: $name"; return }
+  $ub = Upstream-Branch $r
+  if (-not $ub) { "$name has no remote - nothing to compare against."; return }
+  if (-not $NoFetch) { $null = G $r fetch origin $ub --quiet }
+
+  $rows = @(Outstanding-Rows $r $ub)
+  if ($rows.Count -eq 0) { "$name is level with origin/$ub."; return }
+
+  "=== $name vs origin/$ub ==="
+  ""
+  "{0,-10} {1,-9} {2}" -f 'COMMIT','STATE','SUBJECT'
+  "{0,-10} {1,-9} {2}" -f ('-'*10),('-'*9),('-'*46)
+  $todo = 0
+  foreach ($row in $rows) {
+    if ($row.Applied)      { $state = 'applied' }
+    elseif ($row.Decision) { $state = $row.Decision.How }
+    else                   { $state = 'TODO'; $todo++ }
+    $subj = $row.Subject
+    if ($subj.Length -gt 46) { $subj = $subj.Substring(0,46) + '...' }
+    "{0,-10} {1,-9} {2}" -f $row.Sha.Substring(0,8), $state, $subj
+    if ($row.Decision -and $row.Decision.Note) { "                     -> $($row.Decision.Note)" }
+  }
+  $applied = @($rows | Where-Object { $_.Applied }).Count
+  $ruled   = @($rows | Where-Object { -not $_.Applied -and $_.Decision }).Count
+  ""
+  "applied by patch id: $applied   ruled on: $ruled   TODO: $todo"
+  "(a commit taken but hand-resolved shows as TODO until you rule on it - its"
+  " applied diff differs from upstream's, so no patch id can match)"
+  if ($todo -gt 0) {
+    ""
+    'Rule on one without applying it:'
+    "  .\module-sync.ps1 -Action Decide -Module $name -Commit <sha> -As skipped -Note 'why'"
+  }
+}
+
+function Do-Decide($name) {
+  $r = Join-Path $MODS $name
+  if (-not (Test-Path (Join-Path $r '.git'))) { "no git repo: $name"; return }
+  if (-not $Commit) { '-Commit is required for Decide'; return }
+  if (-not $As)     { '-As taken|skipped is required for Decide'; return }
+  $sha = G1 $r rev-parse --verify -q "$Commit^{commit}"
+  if (-not $sha) { "not a commit in ${name}: $Commit"; return }
+
+  $f = Decided-Path $r
+  if (-not (Test-Path $f)) {
+    Set-Content $f '# Upstream commits ruled on for this clone. Written by module-sync.ps1.' -Encoding utf8
+    Add-Content $f '# <sha> <taken|skipped> <why>' -Encoding utf8
+  }
+  if (Decision-For (Read-Decided $r) $sha) {
+    "already ruled on - replacing the entry for $($sha.Substring(0,8))"
+    $short = $sha.Substring(0,7)
+    $keep = @(Get-Content $f | Where-Object { $_ -notmatch "^\s*$short" })
+    Set-Content $f $keep -Encoding utf8
+  }
+  Add-Content $f ("{0} {1} {2}" -f $sha, $As, $Note) -Encoding utf8
+  "recorded: $($sha.Substring(0,8)) $As $Note"
+  "  $(G1 $r log -1 --format='%s' $sha)"
 }
 
 function Show-Preview($name) {
@@ -92,20 +221,20 @@ function Show-Preview($name) {
   if (-not (Test-Path (Join-Path $r '.git'))) { "no git repo: $name"; return }
   $ub = Upstream-Branch $r
   if (-not $ub) { "$name has no remote - nothing to merge from."; return }
-  if (-not $NoFetch) { $null = & git -C $r fetch origin $ub --quiet 2>$null }
+  if (-not $NoFetch) { $null = G $r fetch origin $ub --quiet }
 
-  $behind = (& git -C $r rev-list --count "HEAD..origin/$ub").Trim()
+  $behind = G1 $r rev-list --count "HEAD..origin/$ub"
   "=== $name : $behind upstream commit(s) pending on origin/$ub ==="
   if ($behind -eq '0') { "Already current."; return }
   ""
-  & git -C $r log --format='  %h %ad %s' --date=short "HEAD..origin/$ub"
+  G $r log --format='  %h %ad %s' --date=short "HEAD..origin/$ub"
   ""
 
   # Merge base is where our branch left upstream; files changed on BOTH sides
   # since then are the only ones that can conflict.
-  $base = (& git -C $r merge-base HEAD "origin/$ub").Trim()
-  $ours   = & git -C $r diff --name-only $base HEAD
-  $theirs = & git -C $r diff --name-only $base "origin/$ub"
+  $base = G1 $r merge-base HEAD "origin/$ub"
+  $ours   = G $r diff --name-only $base HEAD
+  $theirs = G $r diff --name-only $base "origin/$ub"
   $both   = $ours | Where-Object { $theirs -contains $_ }
   "Files changed by us: $($ours.Count)   by upstream: $($theirs.Count)   by both: $($both.Count)"
   if (-not $both) { "No overlap - this merge should be clean."; return }
@@ -115,14 +244,17 @@ function Show-Preview($name) {
   New-Item -ItemType Directory -Force -Path $tmp | Out-Null
   $clean = 0; $conf = 0
   foreach ($f in $both) {
-    & git -C $r show "${base}:$f"        | Out-File -Encoding utf8 "$tmp\base"   -ErrorAction SilentlyContinue
-    & git -C $r show "origin/${ub}:$f"   | Out-File -Encoding utf8 "$tmp\theirs" -ErrorAction SilentlyContinue
-    & git -C $r show "HEAD:$f"           | Out-File -Encoding utf8 "$tmp\ours"   -ErrorAction SilentlyContinue
-    $null = & git merge-file -p "$tmp\ours" "$tmp\base" "$tmp\theirs" 2>$null
+    $fBase   = Join-Path $tmp 'base'
+    $fTheirs = Join-Path $tmp 'theirs'
+    $fOurs   = Join-Path $tmp 'ours'
+    G $r show "${base}:$f"      | Out-File -Encoding utf8 $fBase
+    G $r show "origin/${ub}:$f" | Out-File -Encoding utf8 $fTheirs
+    G $r show "HEAD:$f"         | Out-File -Encoding utf8 $fOurs
+    $null = & git merge-file -p $fOurs $fBase $fTheirs 2>$null
     $n = $LASTEXITCODE
     if ($n -eq 0) { $clean++ } else { $conf++ }
-    $o = (& git -C $r diff --numstat $base HEAD -- $f) -split '\s+'
-    $t = (& git -C $r diff --numstat $base "origin/$ub" -- $f) -split '\s+'
+    $o = (G1 $r diff --numstat $base HEAD -- $f) -split '\s+'
+    $t = (G1 $r diff --numstat $base "origin/$ub" -- $f) -split '\s+'
     $short = $f -replace '^src/',''
     if ($short.Length -gt 50) { $short = '...' + $short.Substring($short.Length-47) }
     "{0,-52} {1,-10} {2}" -f $short, $n, ("+{0}/-{1} vs +{2}/-{3}" -f $o[0],$o[1],$t[0],$t[1])
@@ -146,13 +278,13 @@ function Do-Merge($name) {
     "files underneath it and produce a binary matching no consistent source state."
     return
   }
-  $branch = (& git -C $r rev-parse --abbrev-ref HEAD).Trim()
+  $branch = G1 $r rev-parse --abbrev-ref HEAD
   if ($branch -ne $CUSTOM) {
     "REFUSING: $name is on '$branch', not '$CUSTOM'."
     "Upstream must be merged INTO our branch, never the other way round."
     return
   }
-  $dirty = @(& git -C $r status --porcelain)
+  $dirty = @(G $r status --porcelain)
   if ($dirty.Count -gt 0) {
     "REFUSING: working tree is dirty ($($dirty.Count) entries). Commit first -"
     "an uncommitted change is exactly what a merge is able to destroy."
@@ -160,20 +292,31 @@ function Do-Merge($name) {
     return
   }
 
-  if (-not $NoFetch) { $null = & git -C $r fetch origin $ub --quiet 2>$null }
-  $behind = (& git -C $r rev-list --count "HEAD..origin/$ub").Trim()
+  if (-not $NoFetch) { $null = G $r fetch origin $ub --quiet }
+  $behind = G1 $r rev-list --count "HEAD..origin/$ub"
   if ($behind -eq '0') { "$name is already current."; return }
+
+  # A file added or deleted upstream will not reach the build without a CMake
+  # reconfigure: AutoCollect.cmake globs each module's sources at configure time
+  # and nothing depends on that glob. New files are silently dropped and deleted
+  # ones stay in modules.vcxproj and break it.
+  $ad = @(G $r diff --name-status HEAD "origin/$ub" | Where-Object { $_ -match '^[AD]\s' })
+  if ($ad.Count -gt 0) {
+    "NOTE: this merge adds or deletes $($ad.Count) file(s), so the build needs:"
+    "  powershell -File C:\AzerothRealm\tools\rebuild.ps1 -BuildOnly -Reconfigure"
+    "Without -Reconfigure the new files never compile and the deleted ones break the link."
+  }
 
   # Escape hatch before anything is touched.
   $tag = "pre-merge-{0:yyyyMMdd-HHmmss}" -f (Get-Date)
-  $null = & git -C $r tag $tag
+  $null = G $r tag $tag
   "Tagged pre-merge state as $tag  (undo with: git -C $r reset --hard $tag)"
 
   "Merging origin/$ub into $CUSTOM ($behind commits) ..."
-  $out = & git -C $r merge --no-ff "origin/$ub" -m "merge: upstream origin/$ub into $CUSTOM" 2>&1
+  $out = G $r merge --no-ff "origin/$ub" -m "merge: upstream origin/$ub into $CUSTOM"
   $out | ForEach-Object { "  $_" }
 
-  $conflicts = @(& git -C $r diff --name-only --diff-filter=U)
+  $conflicts = @(G $r diff --name-only --diff-filter=U)
   if ($conflicts.Count -gt 0) {
     ""
     "MERGE STOPPED WITH $($conflicts.Count) CONFLICTED FILE(S) - this is normal, not a failure:"
@@ -185,13 +328,15 @@ function Do-Merge($name) {
   } else {
     ""
     "Merged clean. NOTHING IS LIVE UNTIL YOU REBUILD:"
-    "  powershell -File $PSScriptRoot\rebuild.ps1 -BuildOnly"
+    "  powershell -File C:\AzerothRealm\tools\rebuild.ps1 -BuildOnly"
     "then stop the world and rerun with -InstallOnly."
   }
 }
 
 switch ($Action) {
-  'Status'  { Show-Status }
-  'Preview' { if (-not $Module) { "-Module is required for Preview"; break }; Show-Preview $Module }
-  'Merge'   { if (-not $Module) { "-Module is required for Merge";   break }; Do-Merge   $Module }
+  'Status'      { Show-Status }
+  'Preview'     { if (-not $Module) { "-Module is required for Preview"; break }; Show-Preview $Module }
+  'Merge'       { if (-not $Module) { "-Module is required for Merge";   break }; Do-Merge   $Module }
+  'Outstanding' { if (-not $Module) { "-Module is required for Outstanding"; break }; Show-Outstanding $Module }
+  'Decide'      { if (-not $Module) { "-Module is required for Decide"; break }; Do-Decide $Module }
 }

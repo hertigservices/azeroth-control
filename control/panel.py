@@ -31,6 +31,8 @@ import re
 import subprocess
 import time
 
+import modules as M
+import status as S
 import realms as R
 
 # control.py runs as __main__; importing it here would build a second module
@@ -41,6 +43,8 @@ C = None
 # different schema are not offered those two tools.
 SURGERY_SCHEMA = 'acore_world'
 
+
+ITEM_PAGE = 60
 
 def bind(control_module):
     global C
@@ -346,7 +350,7 @@ def _scalar(c, sql):
         return None, 'no MySQL user declared for %s' % c['name']
     # This realm's own worldserver.conf, so host, port and password all come
     # from the install being queried rather than from the hub's defaults.
-    conf = os.path.join(c['conf'], 'worldserver.conf') if c.get('conf') else None
+    conf = R.world_conf(c['realm'])
     return R.scalar_as(user, sql, conf=conf)
 
 
@@ -689,36 +693,49 @@ def raid_build(slug, cmd_id, args):
 # ------------------------------------------------------------------- overview
 
 def overview(slug):
-    """The old dashboard, scoped: process state plus this realm's own numbers."""
+    """The old dashboard, scoped - now a VIEW of status.snapshot(), not a rival to it.
+
+    This used to ask Windows itself and then decide which realm the answer belonged
+    to from the registry's `active` flag, because a bare process-name lookup could
+    not tell one profile's worldserver.exe from another's. It can now: the snapshot
+    matches on the image path, so a realm reports itself up when ITS OWN binaries are
+    running and at no other time - even if the registry has lost track, and even if
+    another realm is up at the same moment.
+    """
     c = ctx(slug)
     if not c:
         return None
-    world, auth = C.running('worldserver'), C.running('authserver')
-    oll = C.running('ollama')
-    oll['up'] = C.ollama_alive()
-    mine = bool(c['active'])
-    out = {
+    doc = S.snapshot()
+    me = next((r for r in doc['realms'] if r['slug'] == slug), None)
+    if me is None:
+        # A client profile, or a realm added to the registry since. It has no
+        # server-side state to report, but the hub services still do.
+        me = {'running': False, 'ready': False, 'ports': {}, 'blockedBy': None,
+              'population': {'online': None, 'players': None, 'bots': None},
+              'processes': {'worldserver': S._row([], None),
+                            'authserver': S._row([], None)}}
+    ports = me['ports']
+    return {
         'slug': slug, 'name': c['name'], 'active': c['active'],
         'serverDir': c['server'], 'logDir': c['logs'],
         'controls': c['controls'],
-        'mysql': {'up': C.mysql_alive()},
-        'ollama': oll,
-        # Process rows describe the hub's single running world.  They belong to
-        # whichever realm is active, so they are reported as this realm's only
-        # when it is the active one - otherwise the panel would show an idle realm
-        # "up" because another realm's worldserver.exe is in the process list.
-        'authserver': auth if mine else {'up': False},
-        'worldserver': world if mine else {'up': False},
-        'ready': (R.ready(c['realm']) if (mine and world['up']) else False),
-        'population': population(c) if (mine and world['up']) else
-                      {'bots': None, 'players': None},
-        # Listening ports are the hub's, not a realm's: reporting them for an
-        # inactive profile would show its auth port "open" because the OTHER
-        # realm is holding it.
-        'ports': ({'auth': C.port_open(3724), 'world': C.port_open(8085),
-                   'soap': C.port_open(7878)} if mine else {}),
+        'mysql': doc['services']['mysql'],
+        'ollama': doc['services']['ollama'],
+        'authserver': _proc(me['processes']['authserver']),
+        'worldserver': _proc(me['processes']['worldserver']),
+        'ready': bool(me['ready']),
+        'population': me['population'],
+        # Booleans, as the pages have always read them - but now this profile's OWN
+        # configured ports, and true only when the listener is one of ITS processes.
+        # The old version hardcoded 3724/8085/7878 and reported them for whichever
+        # realm was flagged active, so the Ascension archive (world on 8086) showed a
+        # closed world port while running, and an idle realm showed an open one.
+        'ports': dict((k, bool(v['mine'])) for k, v in ports.items()),
+        # The same ports unflattened, for anything that wants to say WHY.
+        'portDetail': ports,
+        'blockedBy': me['blockedBy'],
+        'conflicts': doc['conflicts'],
     }
-    return out
 
 
 # --------------------------------------------------------------------- routing
@@ -742,8 +759,12 @@ def handle_get(h, path, query):
         d = bots(slug)
     elif tail == 'raid':
         d = raid(slug)
+    elif tail == 'modules':
+        d = module_list(slug)
     elif tail == 'log':
         d = log(slug, int((query.get('n') or ['200'])[0]))
+    elif tail == 'itembrowser':
+        d = itembrowser(slug, query)
     else:
         return False
     h._json(d if d is not None else {'error': 'unknown realm'},
@@ -778,7 +799,222 @@ def handle_post(h, path, body):
         ok, log_, copy = raid_build(slug, str(body.get('id', '')), body.get('args') or {})
         h._json({'ok': ok, 'log': log_, 'copy': copy})
         return True
+    elif tail == 'module':
+        ok, log_ = set_module(slug, str(body.get('dir', '')),
+                              str(body.get('state', '')), bool(body.get('confirm')))
+    elif tail == 'itemspawn':
+        ok, log_ = item_spawn(slug, body)
     else:
         return False
     h._json({'ok': ok, 'log': log_})
     return True
+
+
+def _proc(row):
+    """A status.py process row in the shape ui.html and launcher.html already read.
+
+    The document is canonical; this is a view of it. Renaming ramMb in two HTML
+    files to avoid a four-line adapter would be the tail wagging the dog.
+    """
+    return {'up': row['up'], 'pid': row['pid'], 'ram_mb': row['ramMb'],
+            'exe': row['exe'], 'others': row['others']}
+
+
+def module_list(slug):
+    c = ctx(slug)
+    if not c:
+        return None
+    # include_population=False: this page never shows a headcount, and the
+    # population query is a MySQL round trip per realm.
+    doc = S.snapshot(include_population=False)
+    me = next((r for r in doc['realms'] if r.get('slug') == slug), None)
+    out = M.view(c['realm'], c['modconf'], bool(me and me.get('ready')))
+    out.update({'slug': slug, 'name': c['name'], 'active': c['active'],
+                'modConfigDir': c['modconf'],
+                'running': bool(me and me.get('running'))})
+    return out
+
+
+def set_module(slug, dirname, state, confirm=False):
+    """on | paused | out for one module. Returns (ok, [log lines]).
+
+    The log is the point. Every one of these three costs something different -
+    nothing, a .reload config, or a rebuild - and the panel's job is to have said
+    so before the click and to say what actually happened after it.
+    """
+    c = ctx(slug)
+    if not c:
+        return False, ['unknown realm: %s' % slug]
+    if state not in ('on', 'paused', 'out'):
+        return False, ['unknown state: %s' % state]
+    m = M.find(c['realm'], dirname)
+    if not m:
+        return False, ['unknown module: %s' % dirname]
+
+    log = []
+    if state == 'out':
+        ok, msg = M.set_build(c['realm'], dirname, True)
+        log += msg
+        if ok:
+            log.append('Nothing was deleted: %s keeps its source, its git repo and '
+                       'its realm/custom branch.' % dirname)
+            log.append('Run tools\\rebuild.ps1 to apply. Until then the module is '
+                       'still compiled in and still running.')
+        return ok, log
+
+    if state == 'paused' and not m['enableKey']:
+        return False, ['%s has no master Enable key, so it cannot be paused. '
+                       'Build it out instead.' % m['label']]
+
+    # 'on' and 'paused' both mean "compiled in", so a module queued out is brought
+    # back first - otherwise the panel would show it on while the ledger still
+    # asked the next configure to remove it.
+    if m['build'] == 'disabled':
+        ok, msg = M.set_build(c['realm'], dirname, False)
+        log += msg
+        if not ok:
+            return False, log
+        log.append('Queued back INTO the build - it returns at the next rebuild.')
+
+    if not m['enableKey']:
+        log.append('%s has no Enable key; being in the build is its on state.'
+                   % m['label'])
+        return True, log
+
+    caveat = M.PAUSE_CAVEAT.get(dirname)
+    if state == 'paused' and caveat and not confirm:
+        # Refused, not applied-with-a-warning. James's call 2026-09-08: these two
+        # are offered, but the caveat has to be read before the write, not found
+        # in a tooltip after it.
+        return False, ['CONFIRM: ' + caveat]
+
+    ok, msg = M.set_enabled(c['realm'], c['modconf'], dirname, state == 'on')
+    log += msg
+    if not ok:
+        return False, log
+
+    doc = S.snapshot(include_population=False)
+    me = next((r for r in doc['realms'] if r.get('slug') == slug), None)
+    if not (me and me.get('running')):
+        log.append('%s is not running - this applies the next time it starts.'
+                   % c['name'])
+        return True, log
+    # The command is the module's own, from modules.APPLY - .reload config for
+    # most, `.ollama reload` for mod-ollama-chat (which caches its config at
+    # OnStartup and re-reads it nowhere else), and None for the three whose master
+    # switch is latched at startup.
+    if not m['applyCmd']:
+        log.append('%s cannot apply this to a running world (%s), so the file is '
+                   'written and nothing changes until the world is restarted. '
+                   'Nothing here restarts a realm.' % (m['label'], m['applyWhy']))
+        return True, log
+    sok, sres = soap_exec(c, m['applyCmd'])
+    log.append(('%s  ->  %%s' if sok else '%s failed: %%s') % m['applyCmd'] % sres)
+    if sok and state == 'paused' and caveat:
+        log.append('Applied. Remember: ' + caveat)
+    return True, log
+
+
+def _rows(c, sql):
+    """A result set from this realm's own MySQL user. (rows, error)."""
+    user = (c['db'] or {}).get('user')
+    if not user:
+        return None, 'no MySQL user declared for %s' % c['name']
+    return R.rows_as(user, sql, conf=R.world_conf(c['realm']))
+
+
+def _esc(s):
+    """Defang a free-text value for inline SQL. ascore is grant-fenced to asc_*,
+    and this strips the three characters that could break out of the literal;
+    the length cap keeps a pathological search from scanning on a huge string."""
+    return (s or '').replace('\\', '').replace("'", '').replace(';', '')[:64]
+
+
+def _one(query, k, d=''):
+    v = query.get(k)
+    if isinstance(v, list):
+        v = v[0] if v else ''
+    return (v if v is not None else d)
+
+
+def itembrowser(slug, query):
+    c = ctx(slug)
+    if not c:
+        return None
+    world = _q(c['db'].get('world'))
+    if not world:
+        return {'error': 'no world database declared for %s' % c['name']}
+    term = _esc(str(_one(query, 'q')).strip())
+    qual = str(_one(query, 'quality')).strip()
+    cls = str(_one(query, 'class')).strip()
+    sub = str(_one(query, 'subclass')).strip()
+    try:
+        page = max(0, int(_one(query, 'page', '0')))
+    except (TypeError, ValueError):
+        page = 0
+    wh = []
+    if term:
+        if term.isdigit():
+            wh.append("(entry = %s OR name LIKE '%%%s%%')" % (term, term))
+        else:
+            wh.append("name LIKE '%%%s%%'" % term)
+    if qual.lstrip('-').isdigit():
+        wh.append('Quality = %d' % int(qual))
+    if cls.lstrip('-').isdigit():
+        wh.append('class = %d' % int(cls))
+    if sub.lstrip('-').isdigit():
+        wh.append('subclass = %d' % int(sub))
+    where = ('WHERE ' + ' AND '.join(wh)) if wh else ''
+    tbl = '%s.item_template' % world
+    total = _count(c, 'SELECT COUNT(*) FROM %s %s;' % (tbl, where))
+    rows, err = _rows(c, (
+        "SELECT entry, name, Quality, ItemLevel, RequiredLevel, class, subclass, "
+        "InventoryType, VerifiedBuild FROM %s %s ORDER BY entry LIMIT %d OFFSET %d;"
+        % (tbl, where, ITEM_PAGE, page * ITEM_PAGE)))
+    items = []
+    for r in (rows or []):
+        r = (r + [''] * 9)[:9]
+        items.append({
+            'entry': r[0], 'name': r[1], 'quality': r[2], 'ilvl': r[3],
+            'reqlvl': r[4], 'class': r[5], 'subclass': r[6], 'invtype': r[7],
+            'vb': None if r[8] in ('', 'NULL') else r[8]})
+    return {
+        'slug': slug, 'name': c['name'], 'active': c['active'], 'world': world,
+        'total': total if total is not None else 0, 'page': page,
+        'pageSize': ITEM_PAGE, 'items': items, 'error': err,
+        'character': online_character(c) if c['active'] else None}
+
+
+def item_spawn(slug, body):
+    c = ctx(slug)
+    if not c:
+        return False, ['unknown realm: %s' % slug]
+    if not c['active']:
+        return False, ['%s is not the active realm - there is no running world to '
+                       'spawn into.' % c['name']]
+    try:
+        entry = int(body.get('entry'))
+    except (TypeError, ValueError):
+        return False, ['not a valid item entry']
+    if entry <= 0:
+        return False, ['not a valid item entry']
+    try:
+        count = int(body.get('count') or 1)
+    except (TypeError, ValueError):
+        count = 1
+    count = max(1, min(count, 1000))
+    char = _esc(str(body.get('char') or '').strip()) or (online_character(c) or '')
+    if not char:
+        return False, ['no character to receive the item - log one in, or type a name']
+    # SOAP runs as a console session with no selected player, so .additem (which
+    # adds to "you") has no target. .send items mails it to a named character,
+    # which works from console; it arrives in that character's in-game mailbox.
+    cmd = ('.send items %s "Archive item" "Spawned from the item browser." %d:%d'
+           % (char, entry, count))
+    ok, res = soap_exec(c, cmd)
+    log = [cmd, res]
+    if ok:
+        log.append('Mailed to %s - collect it from an in-game mailbox.' % char)
+    return ok, log
+
+

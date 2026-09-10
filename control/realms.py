@@ -47,6 +47,8 @@ ROOT = REGISTRY = CREDS = None
 CRED_LABEL = {}
 
 
+ONLINE_SQL = 'SELECT COUNT(*) FROM `%s`.characters WHERE online=1;'
+
 def bind(control_module):
     global C, ROOT, REGISTRY, CREDS
     C = control_module
@@ -260,7 +262,7 @@ def ready(realm):
             return True
         if 'Halting process' in line:
             return False
-    if not C.running('worldserver')['up']:
+    if not C.running('worldserver', server_dir(realm))['up']:
         return False
     port = C.conf_get(world_conf(realm), 'WorldServerPort') or 8085
     return C.port_open(port)
@@ -279,27 +281,23 @@ def verify_saved(realm, emit=_noop):
     if not db:
         return
     user = dbcfg.get('user', 'acore')
-    n, err = scalar_as(user, 'SELECT COUNT(*) FROM `%s`.characters WHERE online=1;' % db)
+    n, err = scalar_as(user, 'SELECT COUNT(*) FROM `%s`.characters WHERE online=1;' % db, conf=world_conf(realm))
     if n is None:
         emit('could not verify %s as %s: %s' % (db, user, err))
     elif n.strip() == '0':
-        emit('verified: every character in %s is flushed and offline' % db)
+        emit('verified: every character in %s is flushed and offline' % db, conf=world_conf(realm))
     else:
         emit('WARNING: %s characters still flagged online in %s' % (n, db))
 
 
 def stop_realm(realm, emit=_noop):
-    """Graceful stop of whichever realm owns the ports. Never force-kills.
+    """Graceful stop of this profile's realm. Never force-kills.
 
-    The two servers are found by name, since only one realm can be running.
-    `realm` decides which database to verify against and which helper scripts
-    belong to it - a profile with none is unaffected.
+    `realm` decides which binaries are signalled, which database is verified, and
+    which helper scripts belong to it - a profile with none is unaffected.
     """
     for name in ('worldserver', 'authserver'):
-        if not C.running(name)['up']:
-            emit('%s: not running' % name)
-            continue
-        emit(C.stop_graceful(name, wait_s=300 if name == 'worldserver' else 60))
+        stop_server(realm, name, 300 if name == 'worldserver' else 60, emit)
     if realm:
         stop_helpers(realm, emit)
         verify_saved(realm, emit)
@@ -340,9 +338,17 @@ def start_realm(realm, emit=_noop):
             emit('%s: EXE MISSING (%s)' % (name, exe))
             ok = False
             continue
-        if C.running(name)['up']:
-            emit('%s: already running' % name)
+        mine = C.running(name, srv)
+        if mine['up']:
+            emit('%s: already running (pid %d)' % (name, mine['pid']))
             continue
+        if mine.get('others'):
+            # Scoped by image path, so another profile's server is correctly "not
+            # running" here - but it is still holding 3724/8085, and the spawn below
+            # would fail to bind with nothing in this log to say why.
+            emit('%s: WARNING - %d process(es) of that name belong to another realm. '
+                 'The ports are shared, so this start will fail until they stop.'
+                 % (name, mine['others']))
         args = ''
         if name == 'worldserver':
             # Readiness is judged from this file, and a stale one from the last
@@ -370,16 +376,16 @@ def start_realm(realm, emit=_noop):
             # check the launch reads as successful and the failure only surfaces
             # minutes later as a world that never becomes ready.
             time.sleep(3)
-            if not C.running(name)['up']:
+            if not C.running(name, srv)['up']:
                 emit('%s: WARNING - died within seconds of launching; see %s'
                      % (name, os.path.join(log_dir(realm) or srv, 'Server.log')))
                 spawned = False
         ok = ok and spawned
 
     # Helpers last, and only if the world came up. Started on their own they are
-    # worse than nothing: an auth helper would let the client log in and reach the
-    # realm list, and whatever sits behind it would then find no world and drop
-    # the session - which reads as a broken login rather than a world that failed.
+    # worse than nothing: the auth shim would let the client log in and reach the
+    # realm list, then the bridge would find no world behind it and drop the
+    # session - which reads as a broken login rather than a world that failed.
     if ok and helpers(realm):
         ok = start_helpers(realm, emit) and ok
     return ok
@@ -427,11 +433,11 @@ def start_helpers(realm, emit=_noop):
 def stop_helpers(realm, emit=_noop):
     """Stop this profile's helper scripts.
 
-    Force-stopped, unlike the servers: these hold no unsaved game state, so there
-    is nothing for a graceful signal to flush. They are stopped on the way out
-    because a helper left running after its world is gone can still accept a
-    connection and then drop it, which is a far more confusing failure than a
-    refused one.
+    Force-stopped, unlike the servers: these hold no unsaved game state - the
+    shim keeps nothing, and the bridge only relays - so there is nothing for a
+    graceful signal to flush. They are stopped on the way out because a bridge
+    left running after its world is gone accepts a login and then drops it, which
+    is a far more confusing failure than a refused connection.
     """
     for h in helpers(realm):
         name = h.get('label') or h.get('name') or '?'
@@ -476,11 +482,15 @@ def switch_to(slug, emit=_noop):
     # Switching to the realm that is already up would stop and restart it, which
     # kicks anyone playing for no gain. Asking for the current realm means "make
     # sure this one is running", so only start what is missing.
-    if doc.get('activeRealm') == slug and C.running('worldserver')['up']:
+    if doc.get('activeRealm') == slug and C.running('worldserver', server_dir(target))['up']:
         say('%s is already the running realm' % target.get('name', slug))
         return True, log
 
     current = find(doc, doc.get('activeRealm'))
+    # Deliberately NOT scoped: this asks "is anything holding the ports", and the
+    # honest answer has to include a realm the registry has lost track of. The stop
+    # itself is scoped, by `current` - so a process that turns out to belong to some
+    # third profile is reported and left alone rather than signalled blind.
     if C.running('worldserver')['up'] or C.running('authserver')['up']:
         say('Stopping %s ...' % ((current or {}).get('name') or 'the running realm'))
         stop_realm(current, say)
@@ -494,3 +504,78 @@ def switch_to(slug, emit=_noop):
     if ok:
         say('%s is starting - the world takes a few minutes to load.' % target.get('name', slug))
     return ok, log
+
+
+def rows_as(user, sql, timeout=20, conf=None):
+    """Multi-row query as `user`. Returns (rows, error).
+
+    Each row is a list of column strings, split on the tab that mysql --batch
+    puts between columns; NULL comes back as the literal 'NULL'. Same grant
+    fence and MYSQL_PWD handling as scalar_as - this is only its many-row twin,
+    for pages like the item browser that need a result set rather than one cell.
+    """
+    if not C.MYSQL:
+        return None, 'mysql client not found'
+    pw = db_password(user, conf)
+    if pw is None:
+        return None, 'no password known for MySQL user %r' % user
+    env = dict(os.environ, MYSQL_PWD=pw)
+    try:
+        p = subprocess.run([C.MYSQL, '--host=' + C.dbinfo('world', conf)['host'],
+                            '--port=' + str(C.dbinfo('world', conf)['port']), '--user=' + user,
+                            '--batch', '--skip-column-names', '-e', sql],
+                           capture_output=True, timeout=timeout, env=env,
+                           creationflags=C.NO_WINDOW)
+    except Exception as e:
+        return None, str(e)
+    if p.returncode != 0:
+        err = p.stderr.decode('utf-8', 'replace').strip().splitlines()
+        return None, (err[-1] if err else 'exit %d' % p.returncode)
+    out = []
+    for line in p.stdout.decode('utf-8', 'replace').split('\n'):
+        if line == '' or line.startswith('mysql:'):
+            continue
+        out.append(line.rstrip('\r').split('\t'))
+    return out, None
+
+
+def online_counter(realm):
+    """A zero-argument callable answering "how many characters are still flagged
+    online?" for THIS profile, as its own MySQL user - or None if it names no
+    characters database.
+
+    control.stop_graceful needs this to decide whether a world that wedged on exit
+    had already saved, and it cannot ask for itself: control.mysql_scalar connects
+    as `acore`, whose grant does not reach sd_* or asc_*. Handed a bare table name
+    it would answer "MySQL could not be queried" for every profile but vanilla, and
+    the hung realm would never be recoverable.
+    """
+    dbcfg = realm.get('db') or {}
+    db = dbcfg.get('characters')
+    if not db:
+        return None
+    user = dbcfg.get('user', 'acore')
+    return lambda: scalar_as(user, ONLINE_SQL % db, conf=world_conf(realm))[0]
+
+
+def stop_server(realm, name, wait_s, emit=_noop):
+    """Graceful stop of ONE of this profile's servers, scoped to its own binaries.
+
+    Every profile ships its own worldserver.exe and authserver.exe, so the process
+    name alone cannot say which realm a process belongs to. Three things are aimed
+    at this profile and not at "whatever is called worldserver": the CTRL_BREAK
+    itself, the Server.log the force-kill branch reads for a shutdown marker, and
+    the characters table it counts. Scoping the signal without scoping the evidence
+    would be worse than scoping neither - the kill would land accurately, on a
+    decision made from another realm's log.
+
+    A caller with no profile in hand (an active realm the registry has lost) passes
+    realm=None and gets the old name-based behaviour, which stays correct for as
+    long as only one realm can hold 3724/8085.
+    """
+    emit(C.stop_graceful(name, wait_s=wait_s,
+                         exe_dir=server_dir(realm) if realm else None,
+                         log_dir=log_dir(realm) if realm else None,
+                         online_count=online_counter(realm) if realm else None))
+
+

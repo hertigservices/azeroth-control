@@ -3,19 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Azeroth Control</title>
-<!-- No webfont link on purpose: this panel must render with no network at
-     all, and a local tool should not tell a third party each time it opens.
-     The stacks below name the designed face first, so it is used if it is
-     installed locally, then fall back through faces Windows ships with. -->
+<title>Azeroth Control Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
 <style>
-/* Dark, gold-accented styling in the WotLK idiom: near-black surfaces under a
-   parchment gold, which is the palette the game's own UI has used since 2004.
-   No third-party artwork, logo or font file is used anywhere in this repo - the
-   display face is Cinzel with a local-serif fallback, the icons are hand-written
-   SVG paths further down this file, and every piece of "art" on the page is a
-   procedural gradient computed from each realm's own accent colour. Change
-   --primary and the whole page follows. */
+/* Design language mined from the archived Ascension launcher bundle
+   (ascension-archive/launcher/renderer/assets/CsHqwm6D.css) and their splash.
+   Token VALUES are theirs; every rule below is written here. No Ascension
+   artwork, logo or font file is used - the display face is Cinzel standing in
+   for their Beaufort, and all "art" is a procedural gradient off each realm's
+   own accent colour. */
 :root{
   --radius:.625rem;
   --background:#121416; --background-alt:#191b1e; --background-alt2:#1c1e21;
@@ -48,7 +46,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 ::-webkit-scrollbar-track{background:var(--background)}
 ::-webkit-scrollbar-thumb{background:var(--secondary-alt2);border-radius:5px}
 ::-webkit-scrollbar-thumb:hover{background:var(--secondary-light)}
-.display{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:.02em}
+.display{font-family:Cinzel,"Times New Roman",serif;font-weight:700;letter-spacing:.02em}
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--foreground-dim)}
 
@@ -59,7 +57,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 .nav{display:flex;align-items:center;gap:1.5rem;padding:0 1.25rem;
   background:var(--secondary);box-shadow:0 1px 0 0 var(--hairline);z-index:6}
 .brand{display:flex;align-items:baseline;gap:.55rem;margin-right:.5rem}
-.brand b{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-size:1.05rem;font-weight:700;letter-spacing:.06em;
+.brand b{font-family:Cinzel,serif;font-size:1.05rem;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;color:var(--primary)}
 .brand span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--foreground-dim)}
 .navtabs{display:flex;gap:.15rem;margin-right:auto;min-width:0;overflow-x:auto;
@@ -100,7 +98,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 .realm:hover{background:var(--secondary-alt0)}
 .realm[aria-current="true"]{background:var(--secondary-alt);border-color:rgba(201,170,113,.35)}
 .realm .crest{width:2.4rem;height:2.4rem;border-radius:.5rem;flex:0 0 auto;position:relative;
-  display:grid;place-items:center;font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:1rem;color:#14100c;
+  display:grid;place-items:center;font-family:Cinzel,serif;font-weight:700;font-size:1rem;color:#14100c;
   background:linear-gradient(145deg,var(--a) 0%,color-mix(in srgb,var(--a) 45%,#000) 100%);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 2px 6px rgba(0,0,0,.5)}
 .realm.dim .crest{filter:grayscale(1) brightness(.55)}
@@ -214,7 +212,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 .clognav .d{font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--secondary-lighter)}
 .entry{padding:1.2rem 0;border-bottom:2px solid var(--secondary-alt0)}
 .entry:first-child{padding-top:0}
-.entry h3{margin:.35rem 0 .5rem;font-size:1.35rem;color:#e6dcc9;font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif}
+.entry h3{margin:.35rem 0 .5rem;font-size:1.35rem;color:#e6dcc9;font-family:Cinzel,serif}
 .entry .m{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
 .entry .sum{color:var(--foreground-alt);margin:.1rem 0 .6rem}
 .entry ul{margin:.4rem 0 0;padding-left:1.1rem;color:var(--foreground-alt)}
@@ -233,7 +231,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 .foot{display:flex;align-items:center;gap:1.25rem;padding:.85rem 1.5rem;background:var(--secondary);
   border-top:1px solid var(--hairline);z-index:5}
 .footinfo{min-width:0;flex:1}
-.footinfo .t{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:.95rem;color:#e6dcc9;
+.footinfo .t{font-family:Cinzel,serif;font-weight:700;font-size:.95rem;color:#e6dcc9;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .footinfo .s{font-size:11.5px;color:var(--foreground-dim);display:flex;gap:.9rem;flex-wrap:wrap;
   margin-top:.15rem}
@@ -255,7 +253,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)}
 .cta .ind svg{width:1.6rem;height:1.6rem;fill:#fff2dd}
 .cta .lbl{display:flex;flex-direction:column;align-items:flex-start;gap:.1rem;min-width:0}
-.cta .lbl b{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-size:1.02rem;letter-spacing:.09em;text-transform:uppercase;
+.cta .lbl b{font-family:Cinzel,serif;font-size:1.02rem;letter-spacing:.09em;text-transform:uppercase;
   color:#fff4e4;text-shadow:0 1px 4px rgba(0,0,0,.6);white-space:nowrap}
 .cta .lbl i{font-style:normal;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
   color:rgba(255,255,255,.72);white-space:nowrap}
@@ -283,7 +281,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
   transition:opacity .45s}
 #splash.gone{opacity:0;pointer-events:none}
 .splash-in{display:flex;flex-direction:column;align-items:center;gap:1.6rem}
-.splash-mark{font-family:Cinzel,"Trajan Pro","Palatino Linotype",Georgia,"Times New Roman",serif;font-weight:700;font-size:2rem;letter-spacing:.24em;
+.splash-mark{font-family:Cinzel,serif;font-weight:700;font-size:2rem;letter-spacing:.24em;
   text-transform:uppercase;color:var(--primary);animation:pulse 2s ease-in-out infinite;
   text-shadow:0 0 18px rgba(0,0,0,.9),0 0 40px rgba(201,170,113,.25)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
@@ -426,6 +424,40 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
 /* item quality colours, Blizzard's own values */
 :root{--q0:#9d9d9d;--q1:#e8e8e8;--q2:#1eff00;--q3:#0070dd;--q4:#a335ee;--q5:#ff8000;
   --q6:#e6cc80;--q7:#00ccff}
+.q0{color:var(--q0)}.q1{color:var(--q1)}.q2{color:var(--q2)}.q3{color:var(--q3)}
+.q4{color:var(--q4)}.q5{color:var(--q5)}.q6{color:var(--q6)}.q7{color:var(--q7)}
+/* --------------------------------------------------------- item browser */
+.ibbar{display:flex;flex-wrap:wrap;align-items:center;gap:.55rem;background:var(--secondary);
+  border:1px solid rgba(255,255,255,.09);border-radius:.5rem;padding:.55rem .7rem;margin-bottom:.8rem}
+.ibbar .lb{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--foreground-dim)}
+.ibbar input{background:var(--background-alt);border:1px solid rgba(255,255,255,.12);
+  border-radius:.4rem;padding:.3rem .5rem;outline:0}
+.ibbar input:focus{border-color:var(--primary)}
+.ibbar .who{width:11rem}.ibbar .qty{width:4.5rem;text-align:center;font-variant-numeric:tabular-nums}
+.ibbar .tip{font-size:11.5px;color:var(--foreground-dim);margin-left:auto}
+.ibcount{font-size:12.5px;color:var(--foreground-dim);margin:0 0 .5rem}
+.ibcount b{color:var(--primary);font-variant-numeric:tabular-nums}
+.ibwrap{overflow-x:auto;background:var(--background-alt);border:1px solid rgba(255,255,255,.07);
+  border-radius:var(--radius)}
+.ibtbl{width:100%;border-collapse:collapse;font-size:13px;min-width:44rem}
+.ibtbl th{position:sticky;top:0;background:var(--background-alt2);text-align:left;
+  font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--foreground-dim);padding:.5rem .7rem;border-bottom:1px solid rgba(255,255,255,.1);z-index:1}
+.ibtbl td{padding:.42rem .7rem;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.ibtbl tr:hover td{background:var(--secondary)}
+.ibtbl .id{font-variant-numeric:tabular-nums;color:var(--secondary-lighter);font-size:12px}
+.ibtbl .nm{font-weight:500;max-width:24rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ibtbl .n{font-variant-numeric:tabular-nums;text-align:right;color:var(--foreground-alt)}
+.ibtbl .cat{color:var(--foreground-dim);font-size:12px;white-space:nowrap}
+.ibtbl td.act{text-align:right;white-space:nowrap}
+.ibvb{font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:.05rem .3rem;border-radius:.25rem;
+  border:1px solid rgba(91,208,122,.4);color:var(--ok)}
+.ibvb.off{border-color:rgba(255,255,255,.14);color:var(--foreground-dim)}
+.ibpager{display:flex;align-items:center;justify-content:center;gap:.7rem;margin:.9rem 0 0;
+  font-size:12.5px;color:var(--foreground-dim)}
+.ibpager b{color:var(--foreground-alt);font-variant-numeric:tabular-nums}
+.ibempty{padding:2rem;text-align:center;color:var(--foreground-dim)}
 </style>
 </head>
 <body>
@@ -466,6 +498,7 @@ a:hover{color:var(--launcher-accent-foreground-secondary)}
       <section class="view" id="view-server"></section>
       <section class="view" id="view-world"></section>
       <section class="view" id="view-tools"></section>
+      <section class="view" id="view-items"></section>
       <section class="view" id="view-reference"></section>
       <section class="view" id="view-settings"></section>
     </main>
@@ -561,22 +594,25 @@ var S = {
   job: null, es: null, filter: 'all', query: ''
 };
 
-/* `when` hides a tab for profiles it cannot mean anything for.  A client-only
-   entry, or a realm this panel does not manage, has no server to power, no
-   configs to tune and no GM console - showing it Server/World/Tools would only
-   offer buttons that refuse.  Reference is data built from the 3.3.5a client,
-   so it is always available. */
+/* `when` hides a tab for profiles it cannot mean anything for: WowUnreal has
+   no server to power, no configs to tune and no GM console, so showing it
+   Server/World/Tools would only offer buttons that refuse.  Reference is data
+   shipped with the 3.3.5a client, so it is always available. */
 var VIEWS = [
   {id:'play',      label:'Play',      icon:ICON.play},
   {id:'server',    label:'Server',    icon:ICON.server, when:managed},
   {id:'world',     label:'World',     icon:ICON.world,  when:managed},
   {id:'addons',    label:'Addons',    icon:ICON.box},
   {id:'tools',     label:'Tools',     icon:ICON.tools,  when:managed},
+  {id:'items',     label:'Items',     icon:ICON.search, when:isAscension},
   {id:'reference', label:'Reference', icon:ICON.book},
   {id:'changelog', label:'Changelog', icon:ICON.news},
   {id:'settings',  label:'Settings',  icon:ICON.gear}
 ];
 function managed(p){ return !!(p && p.serverManaged); }
+/* The item browser reads Ascension's recovered item_template, so it is offered
+   only on that realm - other realms carry stock items already reachable in game. */
+function isAscension(p){ return !!(p && p.slug === 'ascension'); }
 function visibleViews(){
   var p = cur();
   return VIEWS.filter(function(v){ return !v.when || v.when(p); });
@@ -698,8 +734,16 @@ function renderPlay(){
   var hub = S.hub || {};
   row('World server', p.serverUp ? (p.ready ? 'ready' : 'starting') : 'stopped',
       p.serverUp ? (p.ready ? 'on' : 'warn') : 'off');
-  row('Auth server', (hub.authserver && hub.authserver.up) ? 'up' : 'down',
-      (hub.authserver && hub.authserver.up) ? 'on' : 'off');
+  if (hub.usesAuthserver === false){
+    /* No authserver.exe by design - show the helpers that DO serve auth. */
+    (hub.helpers || []).forEach(function(h){
+      row(h.label || h.name, h.up ? ('up \u00b7 :' + h.port) : 'down',
+          h.up ? 'on' : 'off');
+    });
+  } else {
+    row('Auth server', (hub.authserver && hub.authserver.up) ? 'up' : 'down',
+        (hub.authserver && hub.authserver.up) ? 'on' : 'off');
+  }
   row('Active realm', hub.activeRealm || '-', p.active ? 'on' : '');
   if (st.phase) row('Progression phase', st.phase);
   c1.appendChild(el('div','stat'));
@@ -1127,8 +1171,7 @@ function renderCTA(){
     var hub = S.hub || {};
     [['World', p.serverUp ? (p.ready ? 'ready' : 'loading') : 'stopped',
       p.serverUp ? (p.ready ? 'on' : 'warn') : 'off'],
-     ['Auth', (hub.authserver && hub.authserver.up) ? 'up' : 'down',
-      (hub.authserver && hub.authserver.up) ? 'on' : 'off'],
+     authChip(hub),
      ['Active', hub.activeRealm || '—', p.active ? 'on' : '']
     ].forEach(function(t){
       var sp = el('span');
@@ -1262,7 +1305,8 @@ function renderCurrentView(){
     paint('world', renderWorld, sig([PSTATE.rates, PSTATE.busy]));
   else if (S.view === 'tools')
     paint('tools', renderTools, sig([PSTATE.trainer, PSTATE.bots, PSTATE.raid,
-      PSTATE.tool]));
+      PSTATE.modules, PSTATE.tool]));
+  else if (S.view === 'items') renderItems();
   else if (S.view === 'reference')
     paint('reference', renderReference, sig([RF.cat, !!RF.data]));
   else renderSettings();
@@ -1317,30 +1361,6 @@ function refresh(){
   });
 }
 
-/* Deep links: ?realm=<slug>&view=<tab>&tool=<subtab>.
-
-   Applied AFTER the profile load, not at parse time - visibleViews() filters
-   the tab strip by the selected profile, so a view asked for before the rail
-   exists would be silently dropped.  Anything unknown is ignored rather than
-   erroring, which keeps a stale bookmark from landing on a blank page. */
-function deepLink(){
-  var q = {};
-  try {
-    (location.search || '').replace(/^\?/, '').split('&').forEach(function(kv){
-      if (!kv) return;
-      var i = kv.indexOf('=');
-      var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i));
-      q[k] = decodeURIComponent(i < 0 ? '' : kv.slice(i + 1));
-    });
-  } catch (e) { return; }
-  if (q.realm && S.byslug[q.realm]) select(q.realm);
-  if (q.tool) PSTATE.tool = q.tool;
-  if (q.view && visibleViews().some(function(v){ return v.id === q.view; }))
-    setView(q.view);
-  else
-    render();
-}
-
 function boot(){
   renderNav();
   $('splashstatus').textContent = 'Reading realm profiles…';
@@ -1356,7 +1376,6 @@ function boot(){
     if (p) api('/v1/patch/' + p.slug + '/state').then(function(j){
       if (j && j.state === 'running'){ S.job = j; watchJob(p.slug, j.id); }
     });
-    deepLink();
     setTimeout(function(){ $('splash').classList.add('gone'); }, 260);
   }).catch(function(e){
     $('splashstatus').textContent = 'Could not reach the hub on this port.';
@@ -1378,6 +1397,7 @@ function boot(){
 
 var PSTATE = {
   overview: null, settings: null, rates: null, trainer: null, bots: null, raid: null,
+  modules: null,
   log: [], forSlug: null, busy: {}, tool: 'trainer', logTimer: null
 };
 
@@ -1407,11 +1427,11 @@ function copyFallback(text, done){
 /* Load everything the ported views need for one realm.  Called on selection
    change and after any action that could move a value. */
 function loadPanel(slug, only){
-  var want = only || ['overview','settings','rates','trainer','bots','raid','log'];
+  var want = only || ['overview','settings','rates','trainer','bots','raid','modules','log'];
   var jobs = [];
   if (PSTATE.forSlug !== slug){
     PSTATE.overview = PSTATE.settings = PSTATE.rates = null;
-    PSTATE.trainer = PSTATE.bots = PSTATE.raid = null;
+    PSTATE.trainer = PSTATE.bots = PSTATE.raid = PSTATE.modules = null;
     PSTATE.log = [];
     PSTATE.forSlug = slug;
   }
@@ -1427,6 +1447,7 @@ function loadPanel(slug, only){
   get('trainer','trainer','trainer');
   get('bots','bots','bots');
   get('raid','raid','raid');
+  get('modules','modules','modules');
   if (want.indexOf('log') >= 0){
     jobs.push(api('/v1/realm/' + slug + '/log?n=200').then(function(d){
       if (PSTATE.forSlug === slug) PSTATE.log = (d && d.lines) || [];
@@ -1446,6 +1467,18 @@ function pdo(path, body, after){
 }
 
 /* ------------------------------------------------------------- server */
+function authChip(hub){
+  /* One chip for auth. A profile whose auth is a helper has no authserver.exe,
+     so reading hub.authserver there reports "down" for a realm that is fine. */
+  if (hub.usesAuthserver === false){
+    var hs = hub.helpers || [];
+    var allUp = hs.length > 0 && hs.every(function(h){ return h.up; });
+    return ['Auth', allUp ? 'helper' : 'helper down', allUp ? 'on' : 'off'];
+  }
+  var up = !!(hub.authserver && hub.authserver.up);
+  return ['Auth', up ? 'up' : 'down', up ? 'on' : 'off'];
+}
+
 function renderServer(){
   var v = $('view-server'), p = cur();
   v.innerHTML = '';
@@ -1479,7 +1512,15 @@ function renderServer(){
          up ? 'on' : 'off');
   }
   proc(c1, 'MySQL', ov.mysql);
-  proc(c1, 'Auth server', ov.authserver);
+  var _hub = (typeof S !== 'undefined' && S.hub) || {};
+  if (_hub.usesAuthserver === false){
+    (_hub.helpers || []).forEach(function(h){
+      stat(c1, h.label || h.name, h.up ? ('up \u00b7 :' + h.port) : 'down',
+           h.up ? 'on' : 'off');
+    });
+  } else {
+    proc(c1, 'Auth server', ov.authserver);
+  }
   proc(c1, 'World server', ov.worldserver);
   stat(c1, 'World ready', ov.ready ? 'yes' : 'no', ov.ready ? 'on' : 'off');
   proc(c1, 'Ollama', ov.ollama);
@@ -1492,12 +1533,20 @@ function renderServer(){
   var pop = ov.population || {};
   stat(c2, 'Players online', pop.players == null ? '—' : pop.players);
   stat(c2, 'Bots online', pop.bots == null ? '—' : pop.bots);
-  var ports = ov.ports || {};
-  if (Object.keys(ports).length){
-    stat(c2, 'Auth port 3724', ports.auth ? 'listening' : 'closed', ports.auth ? 'on' : 'off');
-    stat(c2, 'World port 8085', ports.world ? 'listening' : 'closed', ports.world ? 'on' : 'off');
-    stat(c2, 'SOAP port 7878', ports.soap ? 'listening' : 'closed', ports.soap ? 'on' : 'off');
-  }
+  /* Ports are read from THIS profile's own configs, not the hub's hardcoded
+     3724/8085/7878 - the Ascension archive runs its world on 8086 and used to show
+     a closed world port while it was serving one.  "listening" means this realm is
+     the listener; an open port owned by someone else is what STOPS it starting, and
+     showing that as "listening" is how an idle profile used to look up. */
+  var pd = ov.portDetail || {};
+  var plabel = {auth: 'Auth', world: 'World', soap: 'SOAP'};
+  Object.keys(pd).forEach(function(k){
+    var p = pd[k];
+    stat(c2, (plabel[k] || k) + ' port ' + p.port,
+         p.mine ? 'listening' : (p.open ? 'held by another realm' : 'closed'),
+         p.mine ? 'on' : (p.open ? 'warn' : 'off'));
+  });
+  if (ov.blockedBy) stat(c2, 'Cannot start', ov.blockedBy, 'warn');
   g.appendChild(c2);
 
   /* --- power --- */
@@ -1860,33 +1909,153 @@ function renderTools(){
   head.appendChild(el('h2','display','Tools — ' + p.name));
   w.appendChild(head);
 
-  /* A sub-tab whose backend reported available:false is dropped rather than
-     shown with a "not installed" notice.  panel.bots() and panel.raid() already
-     make that call from the conf files actually on disk, so a stock AzerothCore
-     without mod-playerbots or mod-raid-roster shows only what it can drive.
-     Trainer is never dropped: SOAP is core, not a module. */
   var tabs = el('div','subtabs');
-  var avail = [['trainer','Trainer'], ['bots','Bots'], ['raid','Raid']]
-    .filter(function(t){
-      var st = PSTATE[t[0]];
-      return !(st && st.available === false);
-    });
-  // Falling back keeps the pane from rendering empty when the remembered tab
-  // belongs to a module this realm does not have.
-  if (!avail.some(function(t){ return t[0] === PSTATE.tool; }))
-    PSTATE.tool = avail.length ? avail[0][0] : 'trainer';
-  avail.forEach(function(t){
+  [['trainer','Trainer'], ['bots','Bots'], ['raid','Raid'],
+   ['modules','Modules']].forEach(function(t){
     var b = el('button','subtab', t[1]);
     b.setAttribute('aria-selected', PSTATE.tool === t[0] ? 'true' : 'false');
     b.onclick = function(){ PSTATE.tool = t[0]; renderTools(); };
     tabs.appendChild(b);
   });
-  if (avail.length > 1) w.appendChild(tabs);
+  w.appendChild(tabs);
 
   if (PSTATE.tool === 'trainer') toolsTrainer(w, p);
   else if (PSTATE.tool === 'raid') toolsRaid(w, p);
+  else if (PSTATE.tool === 'modules') toolsModules(w, p);
   else toolsBots(w, p);
   v.appendChild(w);
+}
+
+/* ---- modules: on / paused / out -------------------------------------------
+   Three states, with what each COSTS said before the click rather than after:
+   nothing, one command to the running world, or a rebuild. The rules live in
+   control/modules.py and are enforced there - a caveated pause comes back as a
+   REFUSAL ("CONFIRM: ...") rather than being merely warned about here, so any
+   other caller of the endpoint gets the same guard. */
+function modBadge(m){
+  var cls = 'badge' + (m.state === 'on' ? ' gold' : (m.state === 'out' ? ' hot' : ''));
+  var b = el('span', cls, m.state.toUpperCase());
+  if (m.state === 'paused'){ b.style.color = 'var(--warn)'; b.style.borderColor = 'rgba(244,176,55,.5)'; }
+  return b;
+}
+
+function modCard(m, M, p){
+  var c = el('div','card');
+
+  var head = el('div');
+  head.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem';
+  var h = el('h3', null, m.label);
+  h.style.margin = '0';
+  head.appendChild(h);
+  head.appendChild(modBadge(m));
+  c.appendChild(head);
+
+  var meta = el('div');
+  meta.style.cssText = 'font-size:12px;color:var(--foreground-dim);margin:.6rem 0;line-height:1.6';
+  meta.appendChild(el('div', null, m.dir));
+  meta.appendChild(el('div', null, m.enableKey
+    ? (m.enableKey + ' = ' + (m.enableValue == null ? '?' : m.enableValue) + '  ·  ' + m.conf)
+    : 'no master Enable key — it can only be built out'));
+
+  /* The whole point of the page: say what a toggle costs BEFORE it is clicked. */
+  var cost = el('div', null, !m.canPause ? ''
+    : (m.applyCmd ? ('pause applies with ' + m.applyCmd + (M.worldReady ? '' : ' — or at the next start'))
+                  : 'pause needs a world restart'));
+  cost.title = m.applyWhy || '';
+  if (!m.applyCmd) cost.style.color = 'var(--warn)';
+  meta.appendChild(cost);
+
+  if (m.pending){
+    var pd = el('div', null, m.pending === 'out'
+      ? 'queued to leave the build — run tools\\rebuild.ps1 to apply'
+      : 'queued to come back — run tools\\rebuild.ps1 to apply');
+    pd.style.color = 'var(--warn)';
+    meta.appendChild(pd);
+  }
+  c.appendChild(meta);
+
+  var row = el('div','rowbtns');
+  [['on','On'], ['paused','Pause'], ['out','Build out']].forEach(function(s){
+    var b = el('button','mini', s[1]);
+    if (s[0] === m.state){ b.style.borderColor = 'var(--primary)'; b.style.color = 'var(--primary)'; }
+    if (s[0] === 'paused' && !m.canPause){
+      b.disabled = true;
+      b.title = m.enableKey ? (m.conf + ' is not in this realm’s module config directory')
+                            : 'this module has no master Enable key';
+    }
+    if (s[0] === 'out' && !M.buildControl){
+      b.disabled = true;
+      b.title = 'this profile declares no build tree in profiles.json';
+    }
+    if (s[0] === 'out' && M.buildBusy){
+      b.disabled = true;
+      b.title = 'a build is running (' + M.buildBusyWhat + ')';
+    }
+    b.onclick = function(){
+      var body = {dir: m.dir, state: s[0]};
+      if (s[0] === 'paused' && m.caveat){
+        if (!confirm(m.label + '\n\n' + m.caveat + '\n\nPause it anyway?')) return;
+        body.confirm = true;      /* the server refuses without this */
+      }
+      if (s[0] === 'out' && !confirm(
+          'Build ' + m.label + ' out of ' + p.name + '?\n\n'
+          + 'Nothing is deleted — this writes ' + m.cmakeVar + '=disabled for the '
+          + 'next configure. It takes a full rebuild (tools\\rebuild.ps1) to apply, '
+          + 'and until then the module is still compiled in and still running.')) return;
+      pdo('module', body, function(){ loadPanel(p.slug, ['modules']).then(render); });
+    };
+    row.appendChild(b);
+  });
+  c.appendChild(row);
+  return c;
+}
+
+function toolsModules(w, p){
+  var M = PSTATE.modules;
+  if (!M){ w.appendChild(el('div','empty','Loading…')); return; }
+  if (!(M.modules || []).length){
+    w.appendChild(el('div','empty', p.name + ' has no module source tree in this hub'
+      + ' — it runs binaries built elsewhere, so there is nothing to toggle here.'));
+    return;
+  }
+
+  if (M.buildBusy){
+    var bb = el('div','warnbox');
+    bb.appendChild(el('b', null, 'A build is running (' + M.buildBusyWhat + '). '));
+    bb.appendChild(document.createTextNode(
+      'Building a module in or out is refused until it finishes — toggling mid-build '
+      + 'is how the tree ends up half-configured.'));
+    w.appendChild(bb);
+  }
+  if (M.pendingCount){
+    var pw = el('div','warnbox');
+    pw.appendChild(el('b', null, M.pendingCount + ' module change'
+      + (M.pendingCount === 1 ? '' : 's') + ' queued. '));
+    pw.appendChild(document.createTextNode(
+      'Run tools\\rebuild.ps1 to apply. It reads this realm’s ledger, passes the '
+      + '-D flags and reconfigures itself — nothing has changed in the running '
+      + 'world yet.'));
+    w.appendChild(pw);
+  }
+  if (!M.buildControl){
+    var nb = el('div','warnbox');
+    nb.appendChild(document.createTextNode(
+      p.name + ' declares no build tree, so modules can be paused but not built out.'));
+    w.appendChild(nb);
+  }
+
+  var g = el('div','grid cols');
+  M.modules.forEach(function(m){ g.appendChild(modCard(m, M, p)); });
+  w.appendChild(g);
+
+  var foot = el('div');
+  foot.style.cssText = 'font-size:11.5px;color:var(--foreground-dim);margin-top:1rem;line-height:1.7';
+  foot.appendChild(el('div', null, 'ledger: ' + M.ledger));
+  foot.appendChild(el('div', null,
+    'Pause writes the module’s own Enable key. Build out writes MODULE_<DIR>=disabled '
+    + 'for the next configure — the source, its git repo and its realm/custom branch '
+    + 'are never touched.'));
+  w.appendChild(foot);
 }
 
 function toolsTrainer(w, p){
@@ -2161,12 +2330,10 @@ function cmdCard(c, kind, ctxData){
 
 /* ---------------------------------------------------------- reference */
 /* The old panel's codex, now partitioned per realm.  It reads
-   refdata-<slug>.json, built from that realm's OWN world DB and its OWN
-   Data/dbc/Spell.dbc, because two realms genuinely disagree about what exists:
-   a heavily modified world can hold several times the creatures and spells a
-   stock 3.3.5a one does.  A single shared file showed the first realm's
-   numbers under every profile - a search that quietly missed most of what was
-   actually on the realm you were looking at, which is worse than no search.
+   refdata-<slug>.json, built from that realm's own world DB and its own
+   Data/dbc/Spell.dbc, because the realms genuinely disagree: Ascension knows
+   127,502 creatures and 208,192 named spells where vanilla knows 30,178 and
+   49,839.  A single shared file showed vanilla's numbers under every profile.
    Switching profiles drops the loaded set and fetches the new one. */
 var QUAL = ['Poor','Common','Uncommon','Rare','Epic','Legendary','Artifact','Heirloom'];
 var RANKN = ['Normal','Elite','Rare Elite','Boss','Rare'];
@@ -2337,6 +2504,261 @@ function refActiveCount(){
   var n = 0;
   for (var k in RF.f) if (RF.f.hasOwnProperty(k) && RF.f[k] !== undefined) n++;
   return n;
+}
+
+/* ============================================================= item browser
+   Ascension-only. The recovered item_template holds ~550k rows, so nothing is
+   held client-side: every keystroke / filter / page hits the panel endpoint,
+   which returns one 60-row window plus the total. State lives in IB; the shell
+   is built once per realm and the 5s status poll is told to leave it alone. */
+var IB = {
+  slug:null, q:'', quality:'', cls:'', page:0,
+  data:null, loading:false, seq:0,
+  who:'', qty:1               // spawn recipient + count, shared by every row
+};
+/* WoW 3.3.5a ItemClass -> label, the categories James wants to browse by. */
+var ITEM_CLASS = {
+  0:'Consumable', 1:'Container', 2:'Weapon', 3:'Gem', 4:'Armor', 5:'Reagent',
+  6:'Projectile', 7:'Trade Goods', 8:'Generic', 9:'Recipe', 10:'Money',
+  11:'Quiver', 12:'Quest', 13:'Key', 14:'Permanent', 15:'Miscellaneous', 16:'Glyph'
+};
+var ITEM_QUALITY = {
+  0:'Poor', 1:'Common', 2:'Uncommon', 3:'Rare', 4:'Epic', 5:'Legendary',
+  6:'Artifact', 7:'Heirloom'
+};
+function ibReset(slug){
+  IB.slug = slug; IB.q = ''; IB.quality = ''; IB.cls = '';
+  IB.page = 0; IB.data = null; IB.loading = false; IB.who = ''; IB.qty = 1;
+}
+
+function renderItems(){
+  var v = $('view-items'), p = cur();
+  if (!p || !isAscension(p)){ v.innerHTML = ''; IB.slug = null; return; }
+  // Built already for this realm?  The poll lands here every 5s; rebuilding
+  // would wipe a half-typed search or reset the scroll, so bail early.
+  if (IB.slug === p.slug && v.firstChild) return;
+  ibReset(p.slug);
+  v.innerHTML = '';
+
+  var w = el('div','wrap');
+  w.style.cssText = 'padding-top:1.2rem;padding-bottom:1.2rem';
+  var head = el('div','sectionhead');
+  head.style.marginTop = '0';
+  head.appendChild(el('h2','display','Items'));
+  head.appendChild(el('span','eyebrow',
+    'Recovered Ascension item_template · spawn mails the item to a character'));
+  w.appendChild(head);
+
+  // search + category/quality filters
+  var bar = el('div','toolbar');
+  var search = el('div','search');
+  search.appendChild(svg(ICON.search));
+  var inp = document.createElement('input');
+  inp.type = 'search';
+  inp.placeholder = 'Search by name or item ID…';
+  inp.value = IB.q;
+  var deb;
+  inp.oninput = function(){
+    clearTimeout(deb);
+    deb = setTimeout(function(){ IB.q = inp.value; IB.page = 0; loadItems(); }, 140);
+  };
+  search.appendChild(inp);
+  bar.appendChild(search);
+
+  bar.appendChild(ibSelect('Category', 'cls', ITEM_CLASS));
+  bar.appendChild(ibSelect('Quality', 'quality', ITEM_QUALITY));
+  w.appendChild(bar);
+
+  // spawn bar: one recipient + qty shared by every row's Spawn button
+  var sb = el('div','ibbar');
+  sb.appendChild(el('span','lb','Send to'));
+  var who = document.createElement('input');
+  who.className = 'who'; who.type = 'text';
+  who.placeholder = 'character name';
+  who.value = IB.who;
+  who.oninput = function(){ IB.who = who.value; };
+  sb.appendChild(who);
+  sb.appendChild(el('span','lb','Qty'));
+  var qty = document.createElement('input');
+  qty.className = 'qty'; qty.type = 'number'; qty.min = '1'; qty.max = '1000';
+  qty.value = String(IB.qty);
+  qty.oninput = function(){
+    var n = parseInt(qty.value, 10);
+    IB.qty = (isFinite(n) && n > 0) ? Math.min(n, 1000) : 1;
+  };
+  sb.appendChild(qty);
+  var tip = el('span','tip');
+  tip.id = 'ib-tip';
+  sb.appendChild(tip);
+  w.appendChild(sb);
+
+  var count = el('div','ibcount'); count.id = 'ib-count';
+  w.appendChild(count);
+
+  var rw = el('div','ibwrap'); rw.id = 'ib-wrap';
+  w.appendChild(rw);
+
+  var pager = el('div','ibpager'); pager.id = 'ib-pager';
+  w.appendChild(pager);
+  v.appendChild(w);
+
+  loadItems();
+}
+
+/* A labelled <select> whose options are a {value:label} map, wired to IB[key]. */
+function ibSelect(label, key, map){
+  var g = el('label','fgroup');
+  g.appendChild(el('span', null, label));
+  var s = document.createElement('select');
+  s.appendChild(new Option('All', ''));
+  Object.keys(map).forEach(function(k){
+    var o = new Option(map[k], k);
+    if (String(IB[key]) === String(k)) o.selected = true;
+    s.appendChild(o);
+  });
+  s.onchange = function(){ IB[key] = s.value; IB.page = 0; loadItems(); };
+  g.appendChild(s);
+  return g;
+}
+
+function loadItems(){
+  if (!IB.slug) return;
+  var my = ++IB.seq;                       // guard against out-of-order responses
+  IB.loading = true;
+  var c = $('ib-count');
+  if (c) c.innerHTML = 'Searching…';
+  var qs = '?q=' + encodeURIComponent(IB.q)
+         + '&quality=' + encodeURIComponent(IB.quality)
+         + '&class=' + encodeURIComponent(IB.cls)
+         + '&page=' + IB.page;
+  api('/v1/realm/' + IB.slug + '/itembrowser' + qs).then(function(d){
+    if (my !== IB.seq || S.view !== 'items') return;   // a newer query won
+    IB.loading = false; IB.data = d || {};
+    ibPaint();
+  }, function(){
+    if (my !== IB.seq) return;
+    IB.loading = false;
+    var cc = $('ib-count');
+    if (cc) cc.textContent = 'Could not reach the item service.';
+  });
+}
+
+function ibPaint(){
+  var d = IB.data || {}, wrap = $('ib-wrap'), count = $('ib-count');
+  if (!wrap || !count) return;
+  var tip = $('ib-tip');
+  if (d.error){
+    count.textContent = '';
+    wrap.innerHTML = '';
+    wrap.appendChild(el('div','ibempty', String(d.error)));
+    $('ib-pager').innerHTML = '';
+    return;
+  }
+  var items = d.items || [], total = d.total || 0;
+  var from = total ? (d.page * (d.pageSize || 60)) + 1 : 0;
+  var to = d.page * (d.pageSize || 60) + items.length;
+  var bits = '<b>' + num(total) + '</b> item' + (total === 1 ? '' : 's');
+  if (total) bits += ' · showing ' + num(from) + '–' + num(to);
+  count.innerHTML = bits;
+
+  // spawn availability depends on a running world; say so once, in the tip
+  if (tip){
+    if (!d.active){
+      tip.textContent = 'Start the realm to enable spawning';
+      tip.style.color = 'var(--warn)';
+    } else {
+      var dflt = d.character ? ('defaults to ' + d.character) : 'type a character name';
+      tip.textContent = 'Spawn mails the item · ' + dflt;
+      tip.style.color = '';
+    }
+  }
+  // seed the recipient box with whoever is online, only while it's untouched
+  if (d.character && !IB.who){
+    IB.who = d.character;
+    var wb = document.querySelector('#view-items .ibbar .who');
+    if (wb && wb.value === '') wb.value = d.character;
+  }
+
+  wrap.innerHTML = '';
+  if (!items.length){
+    wrap.appendChild(el('div','ibempty',
+      total ? 'No items on this page.' : 'No items match this search.'));
+  } else {
+    var tbl = el('table','ibtbl');
+    var thead = el('thead'), htr = el('tr');
+    ['ID','Name','Category','iLvl','Req','Build',''].forEach(function(h, i){
+      var th = el('th', null, h);
+      if (i === 3 || i === 4) th.style.textAlign = 'right';
+      htr.appendChild(th);
+    });
+    thead.appendChild(htr); tbl.appendChild(thead);
+    var tb = el('tbody');
+    items.forEach(function(it){ tb.appendChild(ibRow(it, d.active)); });
+    tbl.appendChild(tb);
+    wrap.appendChild(tbl);
+  }
+  ibPager(d);
+}
+
+function ibRow(it, active){
+  var tr = el('tr');
+  tr.appendChild(el('td','id', it.entry));
+  var q = parseInt(it.quality, 10);
+  var nm = el('td', 'nm' + (isFinite(q) ? ' q' + q : ''), it.name || '(no name)');
+  nm.title = it.name || '';
+  tr.appendChild(nm);
+  var cls = parseInt(it.class, 10);
+  var cat = ITEM_CLASS[cls] != null ? ITEM_CLASS[cls] : ('class ' + it.class);
+  tr.appendChild(el('td','cat', cat));
+  tr.appendChild(el('td','n', it.ilvl));
+  tr.appendChild(el('td','n', it.reqlvl));
+  var vb = el('td', null);
+  var badge = el('span', 'ibvb' + (it.vb ? '' : ' off'), it.vb ? 'loaded' : 'NULL');
+  badge.title = it.vb
+    ? 'VerifiedBuild ' + it.vb + ' — loaded by the worldserver'
+    : 'VerifiedBuild NULL — not loaded until the flip + restart';
+  vb.appendChild(badge);
+  tr.appendChild(vb);
+  var act = el('td','act');
+  var b = el('button','mini','Spawn');
+  b.type = 'button';
+  if (!active){ b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed'; }
+  b.onclick = function(){ ibSpawn(it, b); };
+  act.appendChild(b);
+  tr.appendChild(act);
+  return tr;
+}
+
+function ibSpawn(it, btn){
+  var who = (IB.who || '').trim();
+  if (!who){
+    toast('Type a character name to send the item to', true);
+    var wb = document.querySelector('#view-items .ibbar .who');
+    if (wb) wb.focus();
+    return;
+  }
+  var old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Mailing…';
+  pdo('itemspawn', {entry: it.entry, count: IB.qty, char: who}).then(function(){
+    btn.textContent = old; btn.disabled = false;
+  }, function(){ btn.textContent = old; btn.disabled = false; });
+}
+
+function ibPager(d){
+  var box = $('ib-pager');
+  if (!box) return;
+  box.innerHTML = '';
+  var pages = Math.max(1, Math.ceil((d.total || 0) / (d.pageSize || 60)));
+  if (pages <= 1) return;
+  var prev = el('button','mini','‹ Prev'); prev.type = 'button';
+  prev.disabled = d.page <= 0;
+  prev.onclick = function(){ if (IB.page > 0){ IB.page--; loadItems(); } };
+  var next = el('button','mini','Next ›'); next.type = 'button';
+  next.disabled = d.page >= pages - 1;
+  next.onclick = function(){ if (IB.page < pages - 1){ IB.page++; loadItems(); } };
+  var lbl = el('span', null);
+  lbl.innerHTML = 'Page <b>' + num(d.page + 1) + '</b> of <b>' + num(pages) + '</b>';
+  box.appendChild(prev); box.appendChild(lbl); box.appendChild(next);
 }
 
 function renderReference(){

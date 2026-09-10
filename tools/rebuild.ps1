@@ -8,6 +8,15 @@
 param(
   [switch]$BuildOnly,     # configure + compile, leave server\ alone
   [switch]$InstallOnly,   # skip compiling, install what is already built
+  # Force configure even when no new mod-* folder appeared. Needed whenever a
+  # module gains or loses a FILE or SUBDIRECTORY - upstream merges and cherry-
+  # picks do this routinely. AutoCollect.cmake globs sources at configure time
+  # and nothing depends on that glob, so new files are silently left out of the
+  # build and deleted ones stay in the .vcxproj and break it. See
+  # TROUBLESHOOTING.md "A new source file or subdirectory inside an existing
+  # module never compiles". Budget for a full module rebuild: regenerating
+  # modules.vcxproj marks every source in that target out of date.
+  [switch]$Reconfigure,
   [int]$Cores = 0,        # logical CPUs the compile may use; 0 = the default below
   # Scheduling priority for the compile. BelowNormal keeps the box usable while
   # someone is playing; Normal is roughly a third faster when nobody is. Do not
@@ -40,7 +49,7 @@ Say "Boost_ROOT pinned to $env:Boost_ROOT"
 # That is a compile flag: changing it invalidates every object file and turns a
 # ten minute incremental build into a multi-hour full rebuild.
 $totalCpus = [Environment]::ProcessorCount
-# 8 is the default cap: a 12-core run makes the box
+# 8 is James's standing figure, set 2026-09-04 after a 12-core run made the box
 # unpleasant to use. It is a flat number rather than "all but four" on purpose:
 # the point is a ceiling that stays put, not one that scales with the hardware.
 if ($Cores -le 0)         { $Cores = [Math]::Min(8, $totalCpus) }
@@ -51,7 +60,7 @@ try {
   $self.ProcessorAffinity = [IntPtr]$mask
   $self.PriorityClass     = $Priority
   Say ("Compile pinned to {0} of {1} logical CPUs (affinity 0x{2:X}), priority {3}" -f $Cores,$totalCpus,$mask,$Priority)
-  Say '  -Cores is capped at 8 by default; raise it only if the machine can spare them'
+  Say "  -Cores is capped at 8 by James's instruction - ask him before going higher"
   Say "  -Priority <Idle|BelowNormal|Normal> is free to change; Normal if nobody is playing"
 } catch {
   Say "  WARN could not set affinity/priority: $($_.Exception.Message)"
@@ -76,13 +85,69 @@ if ($freshTree) {
   $known  = @(Select-String -Path $cache -Pattern '^MODULE_(MOD-[A-Z0-9-]+):STRING=' -EA SilentlyContinue |
               ForEach-Object { $_.Matches[0].Groups[1].Value })
   $newMods = @($onDisk | Where-Object { $known -notcontains $_ })
-  if ($newMods.Count -gt 0) {
+  if ($Reconfigure) {
+    Say "-Reconfigure: forcing configure (a module file/directory list changed)."
+    Say "  Expect mod-playerbots to rebuild in full - modules.vcxproj is regenerated."
+    $needConfigure = $true
+  } elseif ($newMods.Count -gt 0) {
     Say ("New module(s) absent from the CMake cache: " + ($newMods -join ', '))
     Say "Re-running configure in place - object cache survives, so this is not a full rebuild."
     $needConfigure = $true
   } else {
     Say "Already configured - skipping configure (delete build\ to force a fresh one)"
   }
+}
+
+# ---- module ledger ---------------------------------------------------------
+# realms\vanilla\modules.json is what the launcher's module page writes. "out"
+# there sets build=disabled HERE rather than moving a directory out of
+# src\modules, which is the operation that trips the configure race
+# documented in TROUBLESHOOTING.md ("CMake Error at modules/CMakeLists.txt:270").
+# Nothing is deleted: the source, its git repo and its realm/custom branch stay.
+#
+# The variable name is MODULE_ + the UPPERCASED DIRECTORY, so the HYPHENS SURVIVE
+# (MODULE_MOD-AOE-LOOT, never MODULE_MOD_AOE_LOOT - the underscore spelling
+# configures cleanly and does nothing). It is generated in control/modules.py and
+# only read here; never type one by hand.
+#
+# Every module is passed explicitly, enabled ones as =static, so a module toggled
+# back IN is restored rather than staying disabled in the cache forever.
+$modFlags = @()
+$ledger = "$HUB\realms\vanilla\modules.json"
+if (Test-Path $ledger) {
+  try {
+    $led = Get-Content $ledger -Raw | ConvertFrom-Json
+    $drift = @()
+    foreach ($m in $led.modules) {
+      $want = 'static'
+      if ($m.build -eq 'disabled') { $want = 'disabled' }
+      $modFlags += "-D$($m.cmakeVar)=$want"
+      if (Test-Path $cache) {
+        $pat = "^" + [regex]::Escape($m.cmakeVar) + ":STRING=(.*)$"
+        $hit = Select-String -Path $cache -Pattern $pat -EA SilentlyContinue | Select-Object -First 1
+        if ($hit) {
+          $have = $hit.Matches[0].Groups[1].Value
+          # 'default' is what -DMODULES=static resolves to, so it is not drift.
+          if (-not (($have -eq $want) -or ($have -eq 'default' -and $want -eq 'static'))) {
+            $drift += "$($m.dir): cache=$have ledger=$want"
+          }
+        }
+      }
+    }
+    $outMods = @($led.modules | Where-Object { $_.build -eq 'disabled' } | ForEach-Object { $_.dir })
+    if ($outMods.Count -gt 0) { Say ("Module ledger: {0} built OUT - {1}" -f $outMods.Count, ($outMods -join ', ')) }
+    else { Say "Module ledger: every module built in" }
+    if ($drift.Count -gt 0) {
+      Say "Ledger differs from the CMake cache - forcing configure:"
+      $drift | ForEach-Object { Say "  $_" }
+      $needConfigure = $true
+    }
+  } catch {
+    Say "WARN could not read $ledger ($($_.Exception.Message)) - building every module in"
+    $modFlags = @()
+  }
+} else {
+  Say "No module ledger at $ledger - building every module in"
 }
 
 if ($needConfigure -and -not $InstallOnly) {
@@ -94,6 +159,7 @@ Say "Configuring ..."
   "-DMYSQL_LIBRARY=$HUB/mysql/lib/libmysql.lib" `
   "-DOPENSSL_ROOT_DIR=$HUB/deps/openssl" `
   -DWITH_WARNINGS=0 -DTOOLS_BUILD=none -DAPPS_BUILD=all -DSCRIPTS=static -DMODULES=static `
+  @modFlags `
   2>&1 | Tee-Object -Append -FilePath $log | Out-Null
 Say "configure exit: $LASTEXITCODE"
 

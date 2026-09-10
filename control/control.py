@@ -69,16 +69,32 @@ def ps(script, need_console=False):
     return p.returncode, p.stdout.decode('utf-8', 'replace').strip()
 
 
-def running(name):
-    rc, out = ps("$p=Get-Process -Name '%s' -ErrorAction SilentlyContinue; if($p){ "
-                 "($p | Select-Object -First 1 | ForEach-Object { \"$($_.Id)|$([int]($_.WorkingSet64/1MB))\" }) } "
-                 "else { '' }" % name)
-    if out and '|' in out:
-        pid, ram = out.split('|')[:2]
-        try:
-            return {'up': True, 'pid': int(pid), 'ram_mb': int(ram)}
-        except ValueError:
-            pass
+def running(name, exe_dir=None):
+    """Is <name> up? With exe_dir, only a process started from THAT directory counts.
+
+    Every realm profile ships its own `worldserver.exe` / `authserver.exe` under its
+    own `server*` folder, so the process NAME cannot tell vanilla's world from
+    SpellDraft's. Everything that stopped or signalled a server used to find it by
+    name and take the first match, which is why running two AzerothCore realms at
+    once was unsafe rather than merely unconfigured: a stop aimed at one realm could
+    land on the other.
+
+    The image path is the discriminator, and it beats a pid file at the job - it is
+    recorded by Windows, survives a panel restart, and cannot go stale.
+
+    When exe_dir is given and nothing under it is running, the answer is False even
+    though a same-named process from another realm may be alive. Falling back to the
+    name would reintroduce exactly the confusion this exists to remove. `others`
+    counts those, so a caller can say so rather than silently ignore them.
+    """
+    found = procs(name)
+    if exe_dir is not None:
+        mine = [p for p in found if _under(p['exe'], exe_dir)]
+        out = dict(mine[0], up=True) if mine else {'up': False}
+        out['others'] = len(found) - len(mine)
+        return out
+    if found:
+        return dict(found[0], up=True)
     return {'up': False}
 
 
@@ -257,8 +273,8 @@ def conf_set(path, key, value):
     return hit
 
 
-def log_tail(n=180):
-    p = os.path.join(LOG_DIR, 'Server.log')
+def log_tail(n=180, log_dir=None):
+    p = os.path.join(log_dir or LOG_DIR, 'Server.log')
     if not os.path.exists(p):
         return []
     try:
@@ -291,7 +307,7 @@ def world_ready():
             return True
         if 'Halting process' in l:
             return False
-    if not running('worldserver')['up']:
+    if not running('worldserver', SERVER_DIR)['up']:
         return False
     return port_open(conf_get(os.path.join(CONF_DIR, 'worldserver.conf'),
                               'WorldServerPort') or 8085)
@@ -481,40 +497,74 @@ if($ok){ 'SENT' } else { 'FAILED' }
 '''
 
 
-def force_kill(name, wait_s=30):
+def force_kill(name, wait_s=30, exe_dir=None):
     """Terminate a process outright. NOT a general-purpose stop.
 
     The only caller is the one branch of stop_graceful that has positively
     verified the process already saved everything: the shutdown marker is in the
     log AND the characters table reports nobody online. Do not call it from
     anywhere else - on a live worldserver this drops every unsaved character.
+
+    Scoped by pid, never by name. The old `Get-Process -Name | Stop-Process -Force`
+    terminated EVERY process with that name, so with a second realm up it would
+    have force-killed a world server it was never aimed at.
     """
-    ps("Get-Process -Name '%s' -ErrorAction SilentlyContinue | Stop-Process -Force" % name)
+    proc = running(name, exe_dir)
+    if not proc['up']:
+        return True
+    ps("Stop-Process -Id %d -Force -ErrorAction SilentlyContinue" % proc['pid'])
     deadline = time.time() + wait_s
     while time.time() < deadline:
-        if not running(name)['up']:
+        if not running(name, exe_dir)['up']:
             return True
         time.sleep(1)
-    return not running(name)['up']
+    return not running(name, exe_dir)['up']
 
 
-def stop_graceful(name, wait_s=300):
+def stop_graceful(name, wait_s=300, exe_dir=None, log_dir=None, online_count=None):
     """CTRL_BREAK -> World::StopNow, which SAVES every character. Never force-kill:
-    that loses everything since the last periodic save."""
-    if not running(name)['up']:
+    that loses everything since the last periodic save.
+
+    With exe_dir, the signal is aimed at the process started from that directory and
+    at no other. Without it, at whichever process of that name is oldest - fine while
+    one realm runs at a time, and the reason callers that know their realm should
+    always pass exe_dir.
+
+    log_dir and online_count name the EVIDENCE for the hung-on-exit branch below,
+    and they default to vanilla's Server.log and vanilla's acore_characters. A caller
+    that scopes exe_dir to another realm must scope these too: judging a SpellDraft
+    world by vanilla's log and vanilla's character table would read a stale shutdown
+    marker plus an empty online count as "saved, safe to terminate" for a process that
+    had saved nothing. If exe_dir is given without them, that branch declines to kill
+    and says why.
+
+    online_count is a CALLABLE, not a database name, because each profile is reached as
+    its own MySQL user: mysql_scalar() below connects as `acore`, which by grant cannot
+    see sd_* or asc_* at all, so naming another realm's table here would answer "MySQL
+    could not be queried" every time and the hang would never be recoverable. It returns
+    the count as a string, or None if it could not be read - None is UNKNOWN, never a
+    successful save.
+    """
+    proc = running(name, exe_dir)
+    if not proc['up']:
+        elsewhere = proc.get('others') or 0
+        if elsewhere:
+            return ('%s: not running from %s (%d process(es) of that name belong to '
+                    'another realm and were left alone)' % (name, exe_dir, elsewhere))
         return '%s: not running' % name
     # Deliberately IGNORE the helper's stdout. The script calls FreeConsole() to
     # detach from its own console before attaching to the target's - which severs
     # its stdout, so its success message never comes back. Judging delivery from
     # that empty output produced false "signal NOT delivered" reports for stops
     # that had in fact worked. Observed process state is the only honest signal.
-    ps(GRACEFUL_PS.replace('__NAME__', name), need_console=True)
+    ps(GRACEFUL_PS.replace('__PID__', str(proc['pid'])), need_console=True)
 
     # A 1000-bot world takes minutes to drain its DB pools; exiting is the proof.
     deadline = time.time() + wait_s
     while time.time() < deadline:
-        if not running(name)['up']:
-            saved = 'Halting process' in '\n'.join(log_tail(400)) if name == 'worldserver' else True
+        if not running(name, exe_dir)['up']:
+            saved = ('Halting process' in '\n'.join(log_tail(400, log_dir))
+                     if name == 'worldserver' else True)
             return '%s: exited%s' % (name, ' after a clean shutdown' if saved else ' (no shutdown marker in log)')
         time.sleep(3)
     # Timing out does NOT imply the signal missed. The failure actually seen here is the
@@ -535,15 +585,25 @@ def stop_graceful(name, wait_s=300):
     # one of the suspended threads. Signature: 0.00s CPU, ~all threads "Wait, Suspended",
     # Server.log frozen mid-sentence. Terminating is the only way out of it, and by then
     # the save is long finished - so do that here instead of leaving the realm wedged.
-    if name == 'worldserver' and 'Halting process' in '\n'.join(log_tail(400)):
-        online = mysql_scalar(
-            'SELECT COUNT(*) FROM acore_characters.characters WHERE online=1;')
+    # Both rails of the evidence must belong to the realm being stopped. Scoping the
+    # signal without scoping the proof would be worse than not scoping at all: the
+    # kill would land accurately, on a decision made from another realm's log.
+    if exe_dir is not None and (log_dir is None or online_count is None):
+        return ('%s: STILL RUNNING after %ds, and this realm supplied no log directory '
+                'or characters database, so whether it saved cannot be established. '
+                'NOT terminating it. Check its own Server.log before doing anything.'
+                % (name, wait_s))
+    if name == 'worldserver' and 'Halting process' in '\n'.join(log_tail(400, log_dir)):
+        online = (online_count() if online_count else
+                  mysql_scalar('SELECT COUNT(*) FROM acore_characters.characters WHERE online=1;'))
+        if online is not None:
+            online = str(online).strip()
         if online == '0':
             # Both rails are green here - the shutdown marker is in the log and no
             # character is flagged online - so nothing is pending and the process is
             # only still holding worldserver.exe and its ports. Leaving it up is what
             # blocks the next start, so kill it rather than just describing it.
-            gone = force_kill(name)
+            gone = force_kill(name, exe_dir=exe_dir)
             return ('%s: SAVED, then hung on exit - terminated after %ds. It took the '
                     'signal, flushed every character and released MySQL; nothing was '
                     'pending, so this lost nothing. %s' %
@@ -580,9 +640,10 @@ def stop_mysql():
 
 
 def stop_all(include_auth=True, include_deps=False):
-    msgs = [stop_graceful('worldserver')]
+    msgs = [stop_graceful('worldserver', exe_dir=SERVER_DIR, log_dir=LOG_DIR,
+                          online_count=lambda: mysql_scalar('SELECT COUNT(*) FROM `%s`.characters WHERE online=1;' % dbinfo('character')['name']))]
     if include_auth:
-        msgs.append(stop_graceful('authserver', wait_s=60))
+        msgs.append(stop_graceful('authserver', wait_s=60, exe_dir=SERVER_DIR))
     still = mysql_scalar('SELECT COUNT(*) FROM `%s`.characters WHERE online=1;'
                                  % (dbinfo('character')['name'] or 'acore_characters'))
     # Distinguish "0" from "couldn't ask". An unreadable count previously came back
@@ -602,7 +663,7 @@ def stop_all(include_auth=True, include_deps=False):
 
 
 def status():
-    world, auth = running('worldserver'), running('authserver')
+    world, auth = running('worldserver', SERVER_DIR), running('authserver', SERVER_DIR)
     # Report Ollama by API reachability, not process presence: "ollama app.exe" can sit
     # in the process list with the API dead, which showed a healthy-looking panel while
     # bot chat was silent.
@@ -1838,7 +1899,11 @@ def _movespeed_reload_unsafe():
 
 def _reload_config():
     """Re-read worldserver.conf in the running world. Returns a list of notes."""
-    if not running('worldserver'):
+    # ['up'], not the dict: running() returns {'up': False} for a stopped world,
+    # which is truthy, so this guard never fired and a stopped world was sent a SOAP
+    # reload that could only fail - reported as "SOAP reload failed", which reads as
+    # a broken SOAP setup rather than a world that is not there.
+    if not running('worldserver', SERVER_DIR)['up']:
         return ['world is not running - applies at next start']
     if _movespeed_reload_unsafe():
         return ['NOT reloaded: Rate.MoveSpeed.NPC is not 1, and reloading compounds '
@@ -1915,7 +1980,7 @@ def _reload_loot():
     disconnected; without SOAP the only route is a world restart. Report which of
     those actually happened - never let the caller assume the fast path worked.
     """
-    if not running('worldserver'):
+    if not running('worldserver', SERVER_DIR)['up']:      # ['up'] - see _reload_config
         return ['world is not running - the change applies at next start']
     log = []
     for t in QD_TABLES:
@@ -2101,7 +2166,7 @@ def spawnrates_set(cat, speed):
          timeout=120)
     label = 'stock speed' if n == 1 else ('%g' % n) + 'x faster'
     log.append('%s: %s applied in the database' % (cat, label))
-    if running('worldserver'):
+    if running('worldserver', SERVER_DIR)['up']:          # ['up'] - see _reload_config
         log.append('Respawn times are cached per loaded map area - RESTART the '
                    'world to apply everywhere. Areas that load fresh use the new '
                    'times immediately.')
@@ -2180,7 +2245,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if u.path == '/api/stop':
                 return self._json({'ok': True, 'log': stop_all(True, bool(body.get('deps', False)))})
             if u.path == '/api/restart':
-                msgs = [stop_graceful('worldserver')]
+                msgs = [stop_graceful('worldserver', exe_dir=SERVER_DIR, log_dir=LOG_DIR,
+                          online_count=lambda: mysql_scalar('SELECT COUNT(*) FROM `%s`.characters WHERE online=1;' % dbinfo('character')['name']))]
                 time.sleep(2)
                 msgs += start_all()
                 return self._json({'ok': True, 'log': msgs})
@@ -2260,6 +2326,60 @@ class Server(socketserver.ThreadingMixIn, http.server.HTTPServer):
 import sys                                                    # noqa: E402
 import launcher                                               # noqa: E402
 launcher.bind(sys.modules[__name__])
+
+
+
+
+def procs(name):
+    """Every live process called <name>.exe, with the image path it was started from.
+
+    Win32_Process rather than Get-Process on purpose: it reports ExecutablePath
+    without opening a handle to the process, so it cannot fail with Access Denied
+    the way Get-Process().Path can, and it is the same class spawn_detached already
+    uses. Returns [{'pid', 'ram_mb', 'exe'}], oldest first.
+    """
+    return procs_many([name]).get(name, [])
+
+
+def procs_many(names):
+    """procs() for several image names in ONE query. Returns {name: [rows]}.
+
+    A status snapshot asks about worldserver, authserver, mysqld and ollama at once,
+    and every Get-CimInstance costs the better part of a second on this box - four
+    round trips is the difference between a panel that feels live and one that does
+    not. Names are matched case-insensitively and returned under the spelling the
+    caller asked for.
+    """
+    names = [n for n in names if n]
+    if not names:
+        return {}
+    want = dict((n.lower(), n) for n in names)
+    filt = ' OR '.join("Name='%s.exe'" % n for n in names)
+    rc, out = ps("Get-CimInstance Win32_Process -Filter \"%s\" | "
+                 "Sort-Object CreationDate | ForEach-Object { "
+                 "\"$($_.Name)|$($_.ProcessId)|$([int]($_.WorkingSetSize/1MB))|$($_.ExecutablePath)\" }"
+                 % filt)
+    found = dict((n, []) for n in names)
+    for line in (out or '').splitlines():
+        bits = line.strip().split('|', 3)
+        if len(bits) == 4 and bits[1].isdigit():
+            base = bits[0][:-4] if bits[0].lower().endswith('.exe') else bits[0]
+            key = want.get(base.lower(), base)
+            found.setdefault(key, []).append(
+                {'pid': int(bits[1]), 'ram_mb': int(bits[2] or 0), 'exe': bits[3]})
+    return found
+
+
+def _under(path, directory):
+    """Is `path` the image of a binary living inside `directory`?"""
+    if not path or not directory:
+        return False
+    try:
+        a = os.path.normcase(os.path.abspath(path))
+        b = os.path.normcase(os.path.abspath(directory))
+        return a.startswith(b + os.sep)
+    except Exception:
+        return False
 
 
 if __name__ == '__main__':

@@ -30,6 +30,8 @@ import time
 import uuid
 
 import panel as P       # realm-scoped versions of the old control panel's tabs
+import modules as M
+import status as S
 import realms as R      # registry IO + per-profile start/stop; shared with the CLI
 
 # control.py runs as __main__, so `import control` here would build a SECOND
@@ -51,6 +53,8 @@ def bind(control_module):
     CHANGELOG_DIR = os.path.join(REALMS_DIR, 'changelog')
     R.bind(control_module)
     P.bind(control_module)
+    S.bind(control_module, R)
+    M.bind(control_module, R)
     _bind_parked_remove(control_module)
 
 
@@ -124,16 +128,41 @@ def _launch_target(r):
 # ---------------------------------------------------------------- products
 
 def products():
+    """What you can click, and whether the thing behind it is up.
+
+    Both halves of that used to be answered from `activeRealm`: a realm was "up" when
+    a process called worldserver.exe existed AND the registry said this realm was the
+    active one. That is two guesses stacked - it showed a crashed realm as running
+    while the registry still pointed at it, and a hand-started one as stopped. The
+    snapshot answers it by image path instead, per realm, so `serverUp` here is an
+    observation.
+    """
     doc = profiles_load()
-    world = C.running('worldserver')
-    auth = C.running('authserver')
+    snap = S.snapshot(include_population=False)
+    by_slug = dict((r['slug'], r) for r in snap['realms'])
     active = doc.get('activeRealm')
-    # Readiness must be read from the ACTIVE profile's log and config, not
-    # control.world_ready()'s pair, which is bound to the default realm -
-    # otherwise a second realm's running world is judged by the first realm's
-    # Server.log, and reads as down while it is plainly up.
-    active_realm = _find(doc, active)
-    ready = (R.ready(active_realm) if (world['up'] and active_realm) else False)
+    run = by_slug.get(snap['runningRealm'] or '')
+    world = P._proc(run['processes']['worldserver']) if run else {'up': False}
+    auth = P._proc(run['processes']['authserver']) if run else {'up': False}
+    ready = bool(run['ready']) if run else False
+    # Some profiles have no authserver.exe AT ALL - Ascension serves auth from a
+    # helper script on its own port (3799), so `auth['up']` is False while login
+    # works perfectly. status.py already computes this; forwarding it is what
+    # stops the UI drawing a red light for a healthy realm. Helper liveness comes
+    # from the snapshot's port scan, which keys each helper by its profile name.
+    uses_auth = bool(run.get('usesAuthserver', True)) if run else True
+    helper_rows = []
+    if run:
+        rprof = _find(doc, run['slug'])
+        rports = run.get('ports') or {}
+        for h in (R.helpers(rprof) if rprof else []):
+            hname = h.get('name') or 'helper'
+            helper_rows.append({
+                'name': hname,
+                'label': h.get('label') or hname,
+                'port': h.get('port'),
+                'up': bool((rports.get(hname) or {}).get('open')),
+            })
 
     out = []
     for r in sorted(doc.get('realms', []), key=lambda x: x.get('order', 99)):
@@ -141,11 +170,11 @@ def products():
         tgt = _launch_target(r)
         shares = r.get('sharesRealm')
         managed = r.get('controls', {}).get('serverManaged', False)
-        # A client-kind product is up when the realm it shares is up.
-        if managed:
-            up = bool(world['up'] and active == r['slug'])
-        else:
-            up = bool(world['up']) if shares else False
+        # A realm is up when ITS OWN world is up. A client-kind product is up when the
+        # realm it shares is - named explicitly, so a client bound to SpellDraft no
+        # longer lights up because vanilla happens to be running.
+        me = by_slug.get(r['slug']) if managed else by_slug.get(shares or '')
+        up = bool(me and me['running'])
         out.append({
             'slug': r['slug'],
             'name': r.get('name', r['slug']),
@@ -162,17 +191,26 @@ def products():
             'playable': bool(inst and tgt and os.path.exists(tgt)),
             'launchTarget': tgt,
             'serverUp': up,
-            'ready': ready if (managed and active == r['slug']) else (ready if shares else False),
+            'ready': bool(me['ready']) if me else False,
+            'blockedBy': me['blockedBy'] if me else None,
             'notes': r.get('notes', ''),
             'requires': r.get('requires', []),
         })
     return {
         'hub': ROOT,
         'activeRealm': active,
+        # What the machine shows, beside what the registry claims. When they differ,
+        # `conflicts` says so in a sentence rather than one of them winning silently.
+        'runningRealm': snap['runningRealm'],
+        'conflicts': snap['conflicts'],
         'schema': doc.get('schema', 0),
         'error': doc.get('error'),
         'worldserver': world,
         'authserver': auth,
+        # False => this profile has no authserver.exe and `authserver` above is
+        # meaningless for it; render `helpers` instead of an auth light.
+        'usesAuthserver': uses_auth,
+        'helpers': helper_rows,
         'ready': ready,
         'products': out,
     }
@@ -378,11 +416,16 @@ def launch(slug):
     workdir = _hub(L.get('workdir')) or os.path.dirname(target)
     kind = L.get('kind', 'exe')
 
+    # Which world this client needs is a named realm, not "a worldserver". Asked
+    # unscoped, a client bound to SpellDraft launched without a warning because
+    # vanilla was up - and then sat at the login screen anyway.
     warn = []
-    if r.get('controls', {}).get('serverManaged') and not C.running('worldserver')['up']:
-        warn.append('worldserver is not running - the client will sit at the login screen')
-    if r.get('sharesRealm') and not C.running('worldserver')['up']:
-        warn.append('no realm is running - start %s first' % r['sharesRealm'])
+    need = r['slug'] if r.get('controls', {}).get('serverManaged') else r.get('sharesRealm')
+    if need:
+        wanted = _find(profiles_load(), need)
+        if not (wanted and C.running('worldserver', R.server_dir(wanted))['up']):
+            warn.append('%s is not running - the client will sit at the login screen'
+                        % (wanted or {}).get('name', need))
 
     try:
         if kind == 'vbs':
@@ -440,14 +483,19 @@ def job_latest(slug):
 # Built per profile, because "world ready" has to be judged from THAT profile's
 # log and config; a shared lambda would watch the vanilla realm every time.
 def _start_steps(realm):
+    # Scoped to this profile's own binaries for the same reason "world ready" is
+    # scoped to its log: while another realm is up, an unscoped check is satisfied
+    # by ITS worldserver and the bar walks straight to 60% for a start that has not
+    # begun. The port collision would then surface as a stall at "World ready".
+    srv = R.server_dir(realm)
     world = realm.get('world') or {}
     if world.get('authserver') is False:
-        # This profile has no authserver.exe - a helper serves auth instead - so
-        # watching for the exe would park the bar at 40% for the whole start. Its
-        # helpers are watched by port in the order start_realm reaches them,
-        # which is after the world.
+        # This profile has no authserver.exe - a helper script serves auth
+        # instead - so watching for the exe would park the bar at 40% for the
+        # whole start. Its helpers are watched by port in the order
+        # start_realm reaches them, which is after the world.
         steps = [('MySQL', 20, lambda: C.mysql_alive()),
-                 ('World server', 40, lambda: C.running('worldserver')['up'])]
+                 ('World server', 40, lambda: C.running('worldserver', srv)['up'])]
         listed = [h for h in R.helpers(realm) if h.get('port')]
         for i, h in enumerate(listed):
             steps.append((h.get('label') or h.get('name') or 'Helper',
@@ -457,8 +505,8 @@ def _start_steps(realm):
         return steps
     return [
         ('MySQL',        20, lambda: C.mysql_alive()),
-        ('Auth server',  40, lambda: C.running('authserver')['up']),
-        ('World server', 60, lambda: C.running('worldserver')['up']),
+        ('Auth server',  40, lambda: C.running('authserver', srv)['up']),
+        ('World server', 60, lambda: C.running('worldserver', srv)['up']),
         ('World ready',  95, lambda: R.ready(realm)),
     ]
 
@@ -546,12 +594,12 @@ def _run_job(job, work, steps):
 
 
 def patch_start(slug, action, deps=False):
-    """'patch' in the game-launcher sense: the long-running action for a product.
+    """'patch' in the Ascension sense: the long-running action for a product.
 
     Every action runs against THAT profile's own directory via realms.py.  The
     obvious shortcut - calling control.start_all() - is wrong here: it is bound
-    to the default realm's SERVER_DIR, so pressing Start on a second realm would
-    boot the first realm's binaries while the panel cheerfully named the second.
+    to the vanilla SERVER_DIR, so pressing Start on SpellDraft would boot the
+    vanilla binaries while the panel cheerfully said SpellDraft.
     """
     doc = profiles_load()
     r = _find(doc, slug)
@@ -579,7 +627,7 @@ def patch_start(slug, action, deps=False):
             if deps:
                 log.append(C.stop_mysql())
             return ok, log
-        steps = _STOP_STEPS
+        steps = _stop_steps(r)
     elif action == 'restart':
         def work(emit):
             ok1, log = _run(lambda e: R.stop_realm(r, e), emit)
@@ -1003,6 +1051,14 @@ def handle_get(h, path, query):
         h._json(disk_space()); return True
     if p == '/v1/products':
         h._json(products()); return True
+    # The status document itself. Everything that draws state should be reading
+    # this - /v1/products answers "what can I click", not "what is running".
+    # ?host=1 adds host memory, ?population=0 skips the MySQL query.
+    if p == '/v1/status':
+        h._json(S.snapshot(
+            include_host=(query.get('host') or ['0'])[0] not in ('0', '', 'false'),
+            include_population=(query.get('population') or ['1'])[0] not in ('0', 'false')))
+        return True
     if p == '/v1/modules':
         h._json(modules((query.get('slug') or [None])[0])); return True
 
@@ -1098,3 +1154,19 @@ def _stream(h, slug, job_id):
         if payload.get('state') in ('done', 'failed'):
             return
         time.sleep(0.5)
+
+
+def _stop_steps(realm):
+    """Stopping THIS realm is done when THIS realm's processes are gone.
+
+    Scoped, unlike the switch below: a stop makes no claim about the ports, only
+    about the profile it was aimed at, and an unscoped check would leave the bar
+    parked at 60% because some other realm is still up.
+    """
+    srv = R.server_dir(realm)
+    return [
+        ('World server stopped', 60, lambda: not C.running('worldserver', srv)['up']),
+        ('Auth server stopped',  90, lambda: not C.running('authserver', srv)['up']),
+    ]
+
+

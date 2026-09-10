@@ -18,7 +18,9 @@ sys.path.insert(0, os.path.join(ROOT, 'control'))
 import control                                                   # noqa: E402
 import realms                                                    # noqa: E402
 
+import status
 realms.bind(control)
+status.bind(control, realms)
 
 
 def say(line):
@@ -26,18 +28,41 @@ def say(line):
 
 
 def cmd_list(doc):
+    """The registry's claims and the machine's answer, side by side.
+
+    UP is observed - a worldserver started from that profile's own directory - and
+    the * is what profiles.json says. The two agreeing is the normal case; them
+    disagreeing is the thing this listing exists to show, so it is not resolved here
+    in favour of either.
+    """
     active = doc.get('activeRealm')
-    print('%-12s %-8s %-9s %-10s %s' % ('SLUG', 'KIND', 'STATUS', 'INSTALLED', 'NAME'))
+    snap = status.snapshot(include_population=False)
+    seen = dict((r['slug'], r) for r in snap['realms'])
+    print('%-12s %-8s %-9s %-10s %-4s %s'
+          % ('SLUG', 'KIND', 'STATUS', 'INSTALLED', 'UP', 'NAME'))
     for r in sorted(doc.get('realms', []), key=lambda x: x.get('order', 99)):
         mark = '*' if r['slug'] == active else ' '
         inst = '-' if r.get('kind') != 'realm' else ('yes' if realms.installed(r) else 'no')
-        print('%s%-11s %-8s %-9s %-10s %s' % (mark, r['slug'], r.get('kind', 'realm'),
-                                              r.get('status', '?'), inst, r.get('name', '')))
-    world, auth = control.running('worldserver'), control.running('authserver')
-    print('\nworldserver: %s   authserver: %s'
-          % ('up pid %s' % world.get('pid') if world['up'] else 'down',
-             'up pid %s' % auth.get('pid') if auth['up'] else 'down'))
+        me = seen.get(r['slug'])
+        up = '-' if me is None else ('yes' if me['running'] else 'no')
+        print('%s%-11s %-8s %-9s %-10s %-4s %s'
+              % (mark, r['slug'], r.get('kind', 'realm'), r.get('status', '?'),
+                 inst, up, r.get('name', '')))
+    run = seen.get(snap['runningRealm'] or '')
+    if run:
+        w, a = run['processes']['worldserver'], run['processes']['authserver']
+        print('\n%s: worldserver %s   authserver %s'
+              % (run['slug'],
+                 'pid %s' % w['pid'] if w['up'] else 'down',
+                 'pid %s' % a['pid'] if a['up'] else 'down'))
+    else:
+        print('\nno realm is running')
     print('* = activeRealm in profiles.json')
+    for c in snap['conflicts']:
+        print('CONFLICT: %s' % c)
+    for r in snap['realms']:
+        if r['blockedBy']:
+            print('%s cannot start: %s' % (r['slug'], r['blockedBy']))
     return 0
 
 
