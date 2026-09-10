@@ -13,7 +13,10 @@ were publication cleanup rather than missing features. The existing CoA helper a
 optional in-process key-reader source are retained. Stock-client generators and four
 authored shim modules remain experimental; their presence does not establish client
 compatibility. Generated stock-client datasets remain in the local preservation archive.
-The alternate AuthGate worktree remains a preserved experiment, not the default boot path.
+At final remote reconciliation, published commits 877651e and 0365bbd promoted
+the reviewed AuthGate package to the default. Those commits and their attribution
+were merged intact; the current authentication guide takes precedence over the
+initial backup snapshot. Consolidation did not reinstall or modify the client.
 
 Before consolidation, all four repositories and the AuthGate worktree were backed up
 as complete Git bundles plus tracked/untracked source snapshots. Private reports retain
