@@ -1187,6 +1187,18 @@ function ctaState(){
   if (p.kind === 'client')
     return {label:'Play', sub: p.serverUp ? 'realm is up' : 'start a realm first',
             icon:ICON.play, disabled:false, act:'launch'};
+  /* An independent profile holds its own ports and runs BESIDE the active realm,
+     so it is started and stopped on its own and never switched to. */
+  if (p.independent){
+    if (!p.serverUp)
+      return {label:'Start realm', sub:'runs beside ' + activeName(), icon:ICON.power,
+              disabled:false, act:'start'};
+    if (!p.ready)
+      return {label:'Loading world', sub:'maps still loading', icon:ICON.power,
+              disabled:true, busy:true, pct:80};
+    return {label:playLabel(p), sub:'realm is ready', icon:ICON.play,
+            disabled:false, act:'launch'};
+  }
   if (!p.active){
     var h = S.hub || {}, busyRealm = !!(h.worldserver && h.worldserver.up);
     var from = (S.byslug[h.activeRealm] || {}).name || h.activeRealm || 'the running realm';
@@ -1201,7 +1213,20 @@ function ctaState(){
   if (!p.ready)
     return {label:'Loading world', sub:'maps still loading', icon:ICON.power,
             disabled:true, busy:true, pct:80};
-  return {label:'Play', sub:'realm is ready', icon:ICON.play, disabled:false, act:'launch'};
+  return {label:playLabel(p), sub:'realm is ready', icon:ICON.play,
+          disabled:false, act:'launch'};
+}
+
+function activeName(){
+  var h = S.hub || {};
+  return (S.byslug[h.activeRealm] || {}).name || h.activeRealm || 'the active realm';
+}
+
+/* With one client the button just says Play.  With two it has to say WHICH, or
+   the pair reads as "Play" and "the other one". */
+function playLabel(p){
+  var L = p.launchers || [];
+  return (L.length > 1 && L[0].label) ? L[0].label : 'Play';
 }
 
 function renderCTA(){
@@ -1235,7 +1260,20 @@ function renderCTA(){
 
   var extra = $('ctaextra');
   extra.innerHTML = '';
-  if (p && p.serverManaged && p.active && p.serverUp && !(S.job && S.job.state === 'running')){
+  var jobbusy = !!(S.job && S.job.state === 'running');
+  /* A realm played by more than one client gets a button per extra client beside
+     the main Play - the CoA fork is played by Ascension.exe AND by the stock
+     3.3.5a client, and that is a choice, not a setting. */
+  if (p && s.act === 'launch' && !jobbusy){
+    (p.launchers || []).slice(1).forEach(function(L){
+      var b = el('button','mini', L.label);
+      b.disabled = !L.exists;
+      b.title = L.exists ? (L.note || '') : 'not installed';
+      b.onclick = function(){ doAction('launch', L.id); };
+      extra.appendChild(b);
+    });
+  }
+  if (p && p.serverManaged && (p.active || p.independent) && p.serverUp && !jobbusy){
     var stop = el('button','mini danger','Stop');
     stop.onclick = function(){ doAction('stop'); };
     extra.appendChild(stop);
@@ -1245,11 +1283,11 @@ function renderCTA(){
   }
 }
 
-function doAction(act){
+function doAction(act, which){
   var p = cur();
   if (!p || !act) return;
   if (act === 'launch'){
-    api('/v1/launch/' + p.slug, {}).then(function(r){
+    api('/v1/launch/' + p.slug, which ? {target:which} : {}).then(function(r){
       toast((r.log||[]).join(' · '), !r.ok);
     });
     return;
@@ -1604,7 +1642,7 @@ function renderServer(){
   }
   if (!p.serverManaged){
     c3.appendChild(el('div','empty', p.name + ' does not manage a server.'));
-  } else if (!p.active){
+  } else if (!p.active && !p.independent){
     pbtn('Switch to this realm', 'switch', '', true);
     c3.appendChild(btns);
     c3.appendChild(el('p', null,
@@ -1615,10 +1653,36 @@ function renderServer(){
     pbtn('Restart', 'restart', '', p.serverUp);
     pbtn('Stop', 'stop', 'danger', p.serverUp);
     c3.appendChild(btns);
+    if (p.independent)
+      c3.appendChild(el('p', null,
+        p.name + ' has its own ports and databases, so it starts and stops on its own - '
+        + 'it never switches, and it does not take ' + activeName() + ' down.'))
+        .style.fontSize = '12px';
     if (busy && S.job)
       c3.appendChild(el('p', null, (S.job.step || S.job.action) + '…')).style.fontSize = '12px';
   }
   g.appendChild(c3);
+
+  /* --- clients --- a realm played by more than one client says so here, with the
+     same buttons the footer carries, because this is the page you land on. */
+  if ((p.launchers || []).length > 1){
+    var c4 = el('div','card');
+    c4.appendChild(el('h3', null, 'Clients'));
+    var cbtns = el('div','rowbtns');
+    p.launchers.forEach(function(L){
+      var b = el('button','mini' + (L.exists ? '' : ' danger'), L.label);
+      b.disabled = busy || !L.exists;
+      b.onclick = function(){ doAction('launch', L.id); };
+      cbtns.appendChild(b);
+    });
+    c4.appendChild(cbtns);
+    p.launchers.forEach(function(L){
+      if (L.note || !L.exists)
+        c4.appendChild(el('p', null, L.label + ' - ' + (L.exists ? L.note : 'not installed')))
+          .style.fontSize = '12px';
+    });
+    g.appendChild(c4);
+  }
   w.appendChild(g);
 
   /* --- settings --- */

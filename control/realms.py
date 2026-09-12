@@ -133,6 +133,24 @@ def world_conf(realm):
     return hub(world.get('conf')) or os.path.join(conf_dir(realm) or '', 'worldserver.conf')
 
 
+def bind_port(realm, name):
+    """The TCP port `name` will try to bind for this profile, or None.
+
+    Read from the profile's own configs, because that is the only place it is
+    true: two realms here differ by nothing else, and assuming AzerothCore's
+    3724/8085 would answer for a profile that moved off them.
+    """
+    if name == 'worldserver':
+        v = C.conf_get(world_conf(realm), 'WorldServerPort') or 8085
+    else:
+        v = C.conf_get(os.path.join(conf_dir(realm) or '', 'authserver.conf'),
+                       'RealmServerPort') or 3724
+    try:
+        return int(str(v).strip())
+    except (TypeError, ValueError):
+        return None
+
+
 def python_exe(realm):
     """Interpreter for this profile's helper scripts, or None if none is found.
 
@@ -206,8 +224,8 @@ def db_password(user, conf=None):
     return 'acore' if user == 'acore' else None
 
 
-def scalar_as(user, sql, timeout=12, conf=None):
-    """One-value query as `user`. Returns (value, error); value is None on failure.
+def _mysql_as(user, sql, timeout=12, conf=None):
+    """Run `sql` as `user`. Returns (stdout, error); stdout is None on failure.
 
     The error is returned rather than swallowed so callers can tell "MySQL is
     down" apart from "this user is not allowed to look" - the second is the
@@ -234,11 +252,28 @@ def scalar_as(user, sql, timeout=12, conf=None):
     if p.returncode != 0:
         err = p.stderr.decode('utf-8', 'replace').strip().splitlines()
         return None, (err[-1] if err else 'exit %d' % p.returncode)
-    for line in p.stdout.decode('utf-8', 'replace').splitlines():
+    return p.stdout.decode('utf-8', 'replace'), None
+
+
+def scalar_as(user, sql, timeout=12, conf=None):
+    """One-value query as `user`. Returns (value, error); value is None on failure."""
+    out, err = _mysql_as(user, sql, timeout, conf)
+    if out is None:
+        return None, err
+    for line in out.splitlines():
         line = line.strip()
         if line and not line.startswith('mysql:'):
             return line, None
     return None, 'empty result'
+
+
+def exec_as(user, sql, timeout=12, conf=None):
+    """Run a statement as `user`. Returns (ok, error).
+
+    Separate from scalar_as because an UPDATE produces no rows, and "empty
+    result" is a failure there and a success here."""
+    out, err = _mysql_as(user, sql, timeout, conf)
+    return (out is not None), err
 
 
 # ---------------------------------------------------------------- readiness
@@ -262,7 +297,7 @@ def ready(realm):
             return True
         if 'Halting process' in line:
             return False
-    if not C.running('worldserver', server_dir(realm))['up']:
+    if not C.running('worldserver', server_dir(realm), world_conf(realm))['up']:
         return False
     port = C.conf_get(world_conf(realm), 'WorldServerPort') or 8085
     return C.port_open(port)
@@ -285,9 +320,65 @@ def verify_saved(realm, emit=_noop):
     if n is None:
         emit('could not verify %s as %s: %s' % (db, user, err))
     elif n.strip() == '0':
-        emit('verified: every character in %s is flushed and offline' % db, conf=world_conf(realm))
+        emit('verified: every character in %s is flushed and offline' % db)
     else:
         emit('WARNING: %s characters still flagged online in %s' % (n, db))
+
+
+REALM_FLAG_OFFLINE = 0x02
+
+
+def claim_realm_rows(realm, emit=_noop):
+    """Clear REALM_FLAG_OFFLINE on this profile's EXTRA realmlist rows.
+
+    The authserver marks every realm offline on startup with a blanket
+    `UPDATE realmlist SET flag = flag | 2` - no WHERE - and each worldserver then
+    clears the flag for its OWN RealmID and no other (authserver Main.cpp:135,
+    worldserver Main.cpp:291/380). That is correct for one realm per row, and
+    wrong for the case this exists to serve: one world reached at two addresses,
+    because the two clients that play it cannot use the same one. The CoA fork's
+    world is 8086 for a stock 3.3.5a client and 8088 for Ascension.exe, which
+    only talks to the bridge - two rows, one RealmID, so the second row is never
+    claimed by anything and silently disappears from the realm list at the next
+    authserver start.
+
+    Nothing here invents a realm: the ids are declared by the profile in
+    `world.realmRows`, and a row that does not exist is reported, not created.
+    Named rows are printed back rather than a count - a wrong count reads exactly
+    like a right one.
+    """
+    ids = [int(i) for i in ((realm.get('world') or {}).get('realmRows') or [])]
+    if not ids:
+        return True
+    dbcfg = realm.get('db') or {}
+    auth = dbcfg.get('auth')
+    if not auth:
+        emit('realm rows: profile declares %s but names no auth database' % ids)
+        return False
+    user = dbcfg.get('user', 'acore')
+    conf = world_conf(realm)
+    where = ','.join(str(i) for i in ids)
+    ok, err = exec_as(user, 'UPDATE `%s`.realmlist SET flag = flag & ~%d WHERE id IN (%s);'
+                      % (auth, REALM_FLAG_OFFLINE, where), conf=conf)
+    if not ok:
+        emit('realm rows: could not clear the offline flag on %s: %s' % (where, err))
+        return False
+    # Read back what is actually in the table, by name - the update above reports
+    # success whether or not any row matched.
+    out, err2 = scalar_as(user, "SELECT GROUP_CONCAT(CONCAT(id,'=',name,':',port,"
+                          "IF(flag & %d,' OFFLINE',' online')) SEPARATOR ', ') "
+                          "FROM `%s`.realmlist WHERE id IN (%s);"
+                          % (REALM_FLAG_OFFLINE, auth, where), conf=conf)
+    # GROUP_CONCAT over no rows is SQL NULL, which --batch prints as the four
+    # characters "NULL" - a truthy string. Taken at face value that reports a
+    # declared-but-missing row as a healthy one, which is the whole failure this
+    # function exists to make visible.
+    if not out or out == 'NULL':
+        emit('realm rows: NONE of ids %s exist in %s.realmlist%s'
+             % (where, auth, (' (%s)' % err2) if err2 else ''))
+        return False
+    emit('realm rows: %s' % out)
+    return True
 
 
 def stop_realm(realm, emit=_noop):
@@ -338,17 +429,30 @@ def start_realm(realm, emit=_noop):
             emit('%s: EXE MISSING (%s)' % (name, exe))
             ok = False
             continue
-        mine = C.running(name, srv)
+        # Scoped by directory AND, for the world, by config: two profiles may share
+        # server-coa2\ and differ only in the -c file, and the other one being up
+        # must not read as "already running" here.
+        mine = C.running(name, srv, world_conf(realm) if name == 'worldserver' else None)
         if mine['up']:
             emit('%s: already running (pid %d)' % (name, mine['pid']))
             continue
         if mine.get('others'):
             # Scoped by image path, so another profile's server is correctly "not
-            # running" here - but it is still holding 3724/8085, and the spawn below
-            # would fail to bind with nothing in this log to say why.
-            emit('%s: WARNING - %d process(es) of that name belong to another realm. '
-                 'The ports are shared, so this start will fail until they stop.'
-                 % (name, mine['others']))
+            # running" here. Whether that MATTERS is a question about the port, not
+            # about the process: when every profile bound 3724/8085 the two were the
+            # same question, and this said so. They are not the same any more - a
+            # profile that declares its own ports runs beside the others on purpose -
+            # so ask the port before predicting a failure. Crying wolf here is not
+            # harmless: it is the line someone reads before stopping a healthy realm.
+            port = bind_port(realm, name)
+            if port and C.port_open(port):
+                emit('%s: WARNING - port %d is already held, and %d process(es) of that '
+                     'name belong to another realm. This start will fail to bind until '
+                     'whatever holds it stops.' % (name, port, mine['others']))
+            else:
+                emit('%s: %d process(es) of that name belong to another realm; '
+                     'port %s is free, so they do not block this start.'
+                     % (name, mine['others'], port or '(unknown)'))
         args = ''
         if name == 'worldserver':
             # Readiness is judged from this file, and a stale one from the last
@@ -376,11 +480,17 @@ def start_realm(realm, emit=_noop):
             # check the launch reads as successful and the failure only surfaces
             # minutes later as a world that never becomes ready.
             time.sleep(3)
-            if not C.running(name, srv)['up']:
+            if not C.running(name, srv, world_conf(realm) if name == 'worldserver' else None)['up']:
                 emit('%s: WARNING - died within seconds of launching; see %s'
                      % (name, os.path.join(log_dir(realm) or srv, 'Server.log')))
                 spawned = False
         ok = ok and spawned
+
+    # After the authserver, because its blanket "every realm is offline" runs at
+    # ITS startup and would undo this; not gated on `ok`, because a row missing
+    # from the realm list is worth fixing even when something else went wrong.
+    if (realm.get('world') or {}).get('realmRows'):
+        claim_realm_rows(realm, emit)
 
     # Helpers last, and only if the world came up. Started on their own they are
     # worse than nothing: the auth shim would let the client log in and reach the
@@ -389,6 +499,12 @@ def start_realm(realm, emit=_noop):
     if ok and helpers(realm):
         ok = start_helpers(realm, emit) and ok
     return ok
+
+
+def _pid_of(detail):
+    """The pid out of spawn_detached's 'pid 1234' detail string, or None."""
+    m = re.search(r'pid\s+(\d+)', detail or '')
+    return int(m.group(1)) if m else None
 
 
 def start_helpers(realm, emit=_noop):
@@ -419,12 +535,25 @@ def start_helpers(realm, emit=_noop):
         spawned, detail = C.spawn_detached(py, os.path.dirname(script), args=args)
         emit('%s: %s (%s)' % (name, 'launched' if spawned else 'FAILED TO LAUNCH', detail))
         if spawned and port:
+            pid = _pid_of(detail)
             for _ in range(10):
                 time.sleep(1)
                 if C.port_open(port):
                     break
             else:
-                emit('%s: WARNING - not listening on %d after 10s' % (name, port))
+                # Not "it failed to start" - it may be running happily on the WRONG
+                # port, and socketserver sets SO_REUSEADDR, so a helper that fell
+                # back to a compiled default can TAKE that port from the realm that
+                # owns it rather than refuse to bind. Measured 2026-09-12: a bridge
+                # meant for 8087 silently took 8088 from the live CoA realm. A helper
+                # that is not on the port it was declared for is stopped, not left.
+                emit('%s: NOT listening on %d after 10s - stopping it before it can '
+                     'hold a port that belongs to another realm' % (name, port))
+                if pid:
+                    C.ps('Stop-Process -Id %d -Force -ErrorAction SilentlyContinue' % pid)
+                    emit('%s: stopped (pid %d)' % (name, pid))
+                else:
+                    emit('%s: WARNING - could not identify its pid to stop it' % name)
                 spawned = False
         ok = ok and spawned
     return ok
@@ -482,7 +611,7 @@ def switch_to(slug, emit=_noop):
     # Switching to the realm that is already up would stop and restart it, which
     # kicks anyone playing for no gain. Asking for the current realm means "make
     # sure this one is running", so only start what is missing.
-    if doc.get('activeRealm') == slug and C.running('worldserver', server_dir(target))['up']:
+    if doc.get('activeRealm') == slug and C.running('worldserver', server_dir(target), world_conf(target))['up']:
         say('%s is already the running realm' % target.get('name', slug))
         return True, log
 
@@ -576,6 +705,7 @@ def stop_server(realm, name, wait_s, emit=_noop):
     emit(C.stop_graceful(name, wait_s=wait_s,
                          exe_dir=server_dir(realm) if realm else None,
                          log_dir=log_dir(realm) if realm else None,
-                         online_count=online_counter(realm) if realm else None))
+                         online_count=online_counter(realm) if realm else None,
+                         conf=world_conf(realm) if (realm and name == 'worldserver') else None))
 
 

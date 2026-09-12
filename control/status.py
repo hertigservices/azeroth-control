@@ -138,14 +138,16 @@ def host_memory():
     return None
 
 
-def _row(rows, exe_dir):
+def _row(rows, exe_dir, conf=None, name='worldserver'):
     """One process row for a realm, from an already-fetched procs_many() list.
 
-    The same image-path rule control.running() applies, applied to rows already in
-    hand so a whole snapshot costs one CIM query rather than one per realm per
-    process.
+    The same image-path (and, with conf, -c config) rule control.running() applies,
+    applied to rows already in hand so a whole snapshot costs one CIM query rather
+    than one per realm per process. Two profiles sharing a server directory
+    (ascension / coa-stock on server-coa2) are told apart by conf alone.
     """
-    mine = [p for p in rows if C._under(p['exe'], exe_dir)] if exe_dir else list(rows)
+    mine = ([p for p in rows if C._under(p['exe'], exe_dir) and C._uses_conf(p, conf, name)]
+            if exe_dir else list(rows))
     if mine:
         p = mine[0]
         return {'up': True, 'pid': p['pid'], 'ramMb': p['ram_mb'], 'exe': p['exe'],
@@ -263,8 +265,8 @@ def snapshot(include_host=False, include_population=True):
         if r.get('kind') != 'realm':
             continue
         srv = R.server_dir(r)
-        world = _row(pm.get('worldserver') or [], srv)
-        auth = _row(pm.get('authserver') or [], srv)
+        world = _row(pm.get('worldserver') or [], srv, R.world_conf(r))
+        auth = _row(pm.get('authserver') or [], srv, None, 'authserver')
         pids = set(p['pid'] for p in (world, auth) if p['pid'])
         entry = {
             'slug': r.get('slug'), 'name': r.get('name', r.get('slug')),
@@ -290,8 +292,19 @@ def snapshot(include_host=False, include_population=True):
                 entry['population'] = _population(r)
         out['realms'].append(entry)
 
-    # More than one is not a winner to pick, it is a conflict to report.
-    out['runningRealm'] = up_realms[0] if len(up_realms) == 1 else None
+    # More than one realm can now be up ON PURPOSE - each profile may declare its
+    # own auth/world/SOAP ports, which is what lets a PR build be tested while the
+    # realm you play on stays up. So "the running realm" is the active one whenever
+    # it is among those running, and only ambiguous when the registry points at a
+    # realm that is not running at all. Returning null for "more than one" made the
+    # panel draw a healthy pair of realms as a dead one: products() reads world and
+    # auth off THIS slug, so both lights went out while both servers were serving.
+    if len(up_realms) == 1:
+        out['runningRealm'] = up_realms[0]
+    elif out.get('activeRealm') in up_realms:
+        out['runningRealm'] = out['activeRealm']
+    else:
+        out['runningRealm'] = None
     _blockers(out)
     out['conflicts'].extend(_conflicts(out, up_realms))
     return out
@@ -332,10 +345,26 @@ def _conflicts(out, up_realms):
     """
     found = []
     active = out.get('activeRealm')
+    # Two realms up is a conflict only when they actually want the same port.
+    # Every profile used to bind 3724/8085, so "more than one is running" and "they
+    # are fighting" were the same sentence; a profile that declares its own ports
+    # runs beside the others by design, and calling that a conflict trains the eye
+    # to skip the one message that matters. The ports are compared by NUMBER, not
+    # by who holds them - the loser of a race is not listening, so asking who is
+    # bound would hide exactly the collision this reports.
     if len(up_realms) > 1:
-        found.append('%d realms are running at once (%s). The ports are shared, so at '
-                     'most one of them can be reachable.'
-                     % (len(up_realms), ', '.join(up_realms)))
+        claimed = {}
+        for r in out['realms']:
+            if r['slug'] not in up_realms:
+                continue
+            for label, p in r['ports'].items():
+                if label in ('auth', 'world', 'soap'):
+                    claimed.setdefault(p['port'], []).append('%s %s' % (r['slug'], label))
+        for port, who in sorted(claimed.items()):
+            if len(who) > 1:
+                found.append('port %d is claimed by more than one running realm (%s). '
+                             'Only the one that bound it first is reachable.'
+                             % (port, ', '.join(sorted(who))))
     if up_realms and active not in up_realms:
         found.append('profiles.json says the active realm is %s, but the world that is '
                      'running belongs to %s - a switch that did not finish, or a realm '

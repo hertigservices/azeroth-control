@@ -120,9 +120,41 @@ def _installed(r):
     return bool((client and os.path.isdir(client)) or (server and os.path.isdir(server)))
 
 
+def _launch_list(r):
+    """Every client this profile can be played with, normalized.
+
+    `launch` is either one object - the original shape, one Play button - or a
+    LIST of them.  One realm here is played by two different clients: the CoA
+    fork serves Ascension.exe AND a stock 3.3.5a client, each with its own
+    directory, its own patched Wow.exe and its own realm list.  Which one you
+    want is a choice made when you press Play, not a property of the realm, so
+    it belongs in the registry rather than in a wrapper script that flips files
+    around behind the launcher's back.
+    """
+    raw = r.get('launch') or {}
+    entries = raw if isinstance(raw, list) else [raw]
+    out = []
+    for i, e in enumerate(entries):
+        if not isinstance(e, dict) or not e.get('target'):
+            continue
+        target = _hub(e['target'])
+        out.append({
+            'id': e.get('id') or ('c%d' % i),
+            'label': e.get('label') or 'Play',
+            'note': e.get('note', ''),
+            'kind': e.get('kind', 'exe'),
+            'target': target,
+            'workdir': _hub(e.get('workdir')) or os.path.dirname(target or ''),
+            'exists': bool(target and os.path.exists(target)),
+        })
+    return out
+
+
 def _launch_target(r):
-    t = r.get('launch', {}).get('target')
-    return _hub(t) if t else None
+    """The default client's exe - the first entry.  Kept for the callers that
+    only ask "is this profile playable at all"."""
+    entries = _launch_list(r)
+    return entries[0]['target'] if entries else None
 
 
 # ---------------------------------------------------------------- products
@@ -193,6 +225,15 @@ def products():
             'nestedUnder': r.get('nestedUnder'),
             'playable': bool(inst and tgt and os.path.exists(tgt)),
             'launchTarget': tgt,
+            # One entry per client this realm can be played with; the UI draws a
+            # Play button for each.  'launchTarget' above stays the first one, so
+            # anything that only wants "the client" is unaffected.
+            'launchers': [{'id': L['id'], 'label': L['label'], 'note': L['note'],
+                           'exists': L['exists']} for L in _launch_list(r)],
+            # This profile holds its own ports and is started and stopped on its
+            # own, beside whatever realm is active - it is never the target of a
+            # switch.  See patch_start().
+            'independent': bool(r.get('controls', {}).get('independent')),
             'serverUp': up,
             'ready': bool(me['ready']) if me else False,
             'blockedBy': me['blockedBy'] if me else None,
@@ -407,17 +448,24 @@ def _start_cursor_clip():
         return 'cursor instrument NOT started: %s' % e
 
 
-def launch(slug):
+def launch(slug, which=None):
+    """Start one of this profile's clients.  `which` is a launcher id; the first
+    entry is the default, so a caller that knows nothing about clients still gets
+    the profile's own."""
     doc = profiles_load()
     r = _find(doc, slug)
     if not r:
         return False, ['unknown product: %s' % slug]
-    L = r.get('launch') or {}
-    target = _hub(L.get('target'))
-    if not target or not os.path.exists(target):
+    entries = _launch_list(r)
+    if not entries:
+        return False, ['no launch target for %s' % slug]
+    L = next((e for e in entries if e['id'] == which), None) if which else entries[0]
+    if L is None:
+        return False, ['%s has no client %r (has: %s)'
+                       % (slug, which, ', '.join(e['id'] for e in entries))]
+    target, workdir, kind = L['target'], L['workdir'], L['kind']
+    if not L['exists']:
         return False, ['not installed: %s' % (target or '(no launch target)')]
-    workdir = _hub(L.get('workdir')) or os.path.dirname(target)
-    kind = L.get('kind', 'exe')
 
     # Which world this client needs is a named realm, not "a worldserver". Asked
     # unscoped, a client bound to SpellDraft launched without a warning because
@@ -426,7 +474,7 @@ def launch(slug):
     need = r['slug'] if r.get('controls', {}).get('serverManaged') else r.get('sharesRealm')
     if need:
         wanted = _find(profiles_load(), need)
-        if not (wanted and C.running('worldserver', R.server_dir(wanted))['up']):
+        if not (wanted and C.running('worldserver', R.server_dir(wanted), R.world_conf(wanted))['up']):
             warn.append('%s is not running - the client will sit at the login screen'
                         % (wanted or {}).get('name', need))
 
@@ -436,14 +484,14 @@ def launch(slug):
             import subprocess
             subprocess.Popen(['wscript.exe', target], cwd=workdir,
                              creationflags=C.NO_WINDOW, close_fds=True)
-            return True, warn + ['launched %s' % os.path.basename(target)]
+            return True, warn + ['launched %s (%s)' % (L['label'], os.path.basename(target))]
         C.spawn_detached(target, workdir, hidden=False)
         note = []
         if os.path.basename(target).lower() == 'wow.exe':
             started = _start_cursor_clip()
             if started:
                 note.append(started)
-        return True, warn + ['launched %s' % os.path.basename(target)] + note
+        return True, warn + ['launched %s (%s)' % (L['label'], os.path.basename(target))] + note
     except Exception as e:
         return False, warn + ['launch failed: %s' % e]
 
@@ -498,7 +546,7 @@ def _start_steps(realm):
         # whole start. Its helpers are watched by port in the order
         # start_realm reaches them, which is after the world.
         steps = [('MySQL', 20, lambda: C.mysql_alive()),
-                 ('World server', 40, lambda: C.running('worldserver', srv)['up'])]
+                 ('World server', 40, lambda: C.running('worldserver', srv, R.world_conf(realm))['up'])]
         listed = [h for h in R.helpers(realm) if h.get('port')]
         for i, h in enumerate(listed):
             steps.append((h.get('label') or h.get('name') or 'Helper',
@@ -509,7 +557,7 @@ def _start_steps(realm):
     return [
         ('MySQL',        20, lambda: C.mysql_alive()),
         ('Auth server',  40, lambda: C.running('authserver', srv)['up']),
-        ('World server', 60, lambda: C.running('worldserver', srv)['up']),
+        ('World server', 60, lambda: C.running('worldserver', srv, R.world_conf(realm))['up']),
         ('World ready',  95, lambda: R.ready(realm)),
     ]
 
@@ -612,7 +660,18 @@ def patch_start(slug, action, deps=False):
         return None, '%s does not manage a server' % slug
     # 'switch' is the one action whose whole purpose is to run against a realm
     # that is NOT active yet, so it is exempt from the active-realm check.
-    if action != 'switch' and doc.get('activeRealm') != slug:
+    #
+    # So is an `independent` profile.  activeRealm exists because the realms that
+    # predate it all wanted 3724/8085 and only one could hold them; a profile that
+    # declares its OWN ports is meant to run beside whatever is active - a PR build
+    # tested while the realm you play on stays up - so making it switch would be
+    # making it take the others down for no reason.  It is never a switch target
+    # either: there is nothing to switch away from.
+    independent = bool(r.get('controls', {}).get('independent'))
+    if action == 'switch' and independent:
+        return None, ('%s runs on its own ports beside the active realm - '
+                      'use Start and Stop, not Switch' % slug)
+    if action != 'switch' and not independent and doc.get('activeRealm') != slug:
         return None, '%s is not the active realm - switch to it first' % slug
     if not _installed(r):
         return None, '%s is not installed yet' % slug
@@ -1101,7 +1160,7 @@ def handle_post(h, path, body):
         h._json({'ok': ok, 'log': log}); return True
 
     if len(parts) == 3 and parts[0] == 'v1' and parts[1] == 'launch':
-        ok, log = launch(parts[2])
+        ok, log = launch(parts[2], body.get('target'))
         h._json({'ok': ok, 'log': log}); return True
 
     if len(parts) == 3 and parts[0] == 'v1' and parts[1] == 'patch':
@@ -1168,7 +1227,7 @@ def _stop_steps(realm):
     """
     srv = R.server_dir(realm)
     return [
-        ('World server stopped', 60, lambda: not C.running('worldserver', srv)['up']),
+        ('World server stopped', 60, lambda: not C.running('worldserver', srv, R.world_conf(realm))['up']),
         ('Auth server stopped',  90, lambda: not C.running('authserver', srv)['up']),
     ]
 

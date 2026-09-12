@@ -70,8 +70,9 @@ def ps(script, need_console=False):
     return p.returncode, p.stdout.decode('utf-8', 'replace').strip()
 
 
-def running(name, exe_dir=None):
-    """Is <name> up? With exe_dir, only a process started from THAT directory counts.
+def running(name, exe_dir=None, conf=None):
+    """Is <name> up? With exe_dir, only a process started from THAT directory counts;
+    with conf as well, only one started with that config file (see _uses_conf).
 
     Every realm profile ships its own `worldserver.exe` / `authserver.exe` under its
     own `server*` folder, so the process NAME cannot tell vanilla's world from
@@ -90,7 +91,7 @@ def running(name, exe_dir=None):
     """
     found = procs(name)
     if exe_dir is not None:
-        mine = [p for p in found if _under(p['exe'], exe_dir)]
+        mine = [p for p in found if _under(p['exe'], exe_dir) and _uses_conf(p, conf, name)]
         out = dict(mine[0], up=True) if mine else {'up': False}
         out['others'] = len(found) - len(mine)
         return out
@@ -314,7 +315,7 @@ def world_ready():
                               'WorldServerPort') or 8085)
 
 
-def spawn_detached(exe, workdir, args='', hidden=True):
+def spawn_detached(exe, workdir, args='', hidden=True, env=None):
     """Win32_Process.Create escapes this process's job object, so servers outlive the panel.
 
     Paths go inside PowerShell SINGLE quotes: single-quoted PS strings treat both "
@@ -332,6 +333,14 @@ def spawn_detached(exe, workdir, args='', hidden=True):
     cmdline = '"%s"' % exe
     if args:
         cmdline += ' ' + args
+    # NOT an environment block, and it cannot become one by setting $env: here:
+    # Win32_Process.Create is executed by the WMI service, so the new process
+    # inherits WmiPrvSE's environment and not this PowerShell's. That is the same
+    # property that makes it escape our job object, and it is why a configurable
+    # helper must take its settings on the COMMAND LINE. Measured 2026-09-12: a
+    # bridge spawned with $env: set here came up on its compiled default port.
+    if env:
+        return False, 'spawn_detached cannot pass an environment (WMI-created process)'
     if hidden:
         script = ("$si=([WMICLASS]'Win32_ProcessStartup').CreateInstance(); $si.ShowWindow=0; "
                   "$r=([WMICLASS]'Win32_Process').Create('%s','%s',$si); "
@@ -522,7 +531,7 @@ def force_kill(name, wait_s=30, exe_dir=None):
     return not running(name, exe_dir)['up']
 
 
-def stop_graceful(name, wait_s=300, exe_dir=None, log_dir=None, online_count=None):
+def stop_graceful(name, wait_s=300, exe_dir=None, log_dir=None, online_count=None, conf=None):
     """CTRL_BREAK -> World::StopNow, which SAVES every character. Never force-kill:
     that loses everything since the last periodic save.
 
@@ -546,7 +555,7 @@ def stop_graceful(name, wait_s=300, exe_dir=None, log_dir=None, online_count=Non
     the count as a string, or None if it could not be read - None is UNKNOWN, never a
     successful save.
     """
-    proc = running(name, exe_dir)
+    proc = running(name, exe_dir, conf)
     if not proc['up']:
         elsewhere = proc.get('others') or 0
         if elsewhere:
@@ -563,7 +572,7 @@ def stop_graceful(name, wait_s=300, exe_dir=None, log_dir=None, online_count=Non
     # A 1000-bot world takes minutes to drain its DB pools; exiting is the proof.
     deadline = time.time() + wait_s
     while time.time() < deadline:
-        if not running(name, exe_dir)['up']:
+        if not running(name, exe_dir, conf)['up']:
             saved = ('Halting process' in '\n'.join(log_tail(400, log_dir))
                      if name == 'worldserver' else True)
             return '%s: exited%s' % (name, ' after a clean shutdown' if saved else ' (no shutdown marker in log)')
@@ -2366,19 +2375,66 @@ def procs_many(names):
         return {}
     want = dict((n.lower(), n) for n in names)
     filt = ' OR '.join("Name='%s.exe'" % n for n in names)
+    # CommandLine rides along so a caller can tell two servers started from the SAME
+    # directory apart by their -c <config> (see _uses_conf). It is the last field
+    # so its own spaces and quotes never disturb the split.
     rc, out = ps("Get-CimInstance Win32_Process -Filter \"%s\" | "
                  "Sort-Object CreationDate | ForEach-Object { "
-                 "\"$($_.Name)|$($_.ProcessId)|$([int]($_.WorkingSetSize/1MB))|$($_.ExecutablePath)\" }"
+                 "\"$($_.Name)|$($_.ProcessId)|$([int]($_.WorkingSetSize/1MB))|$($_.ExecutablePath)|$($_.CommandLine)\" }"
                  % filt)
     found = dict((n, []) for n in names)
     for line in (out or '').splitlines():
-        bits = line.strip().split('|', 3)
-        if len(bits) == 4 and bits[1].isdigit():
+        bits = line.strip().split('|', 4)
+        if len(bits) >= 4 and bits[1].isdigit():
             base = bits[0][:-4] if bits[0].lower().endswith('.exe') else bits[0]
             key = want.get(base.lower(), base)
             found.setdefault(key, []).append(
-                {'pid': int(bits[1]), 'ram_mb': int(bits[2] or 0), 'exe': bits[3]})
+                {'pid': int(bits[1]), 'ram_mb': int(bits[2] or 0), 'exe': bits[3],
+                 'cmd': bits[4].strip() if len(bits) > 4 else ''})
     return found
+
+
+def _conf_of(row, name):
+    """The config file the process in `row` runs with, as an absolute normalised path.
+
+    Read from its command line: `-c <path>` (quoted or not) when given, otherwise the
+    binary's default of configs/<name>.conf next to the exe - which is exactly what
+    worldserver and authserver do. None when the command line was not readable, so
+    the caller can decline to discriminate rather than guess.
+    """
+    cmd = row.get('cmd') or ''
+    if not cmd:
+        return None
+    m = re.search(r'(?:^|\s)-c\s+(?:"([^"]+)"|(\S+))', cmd)
+    if m:
+        path = m.group(1) or m.group(2)
+    else:
+        path = os.path.join(os.path.dirname(row.get('exe') or ''), 'configs', name + '.conf')
+    try:
+        return os.path.normcase(os.path.abspath(path))
+    except Exception:
+        return None
+
+
+def _uses_conf(row, conf, name):
+    """Does the process in `row` run with config `conf`? True when conf is None.
+
+    Two realm profiles can share one server directory and differ only in the
+    worldserver config they start (a second world on another port, another
+    characters database): ascension / coa-stock on server-coa2 do exactly that. The
+    image path cannot tell them apart; the -c argument can. A row whose command line
+    could not be read is NOT excluded - a wrong 'down' would let a start collide with
+    it on the ports - so it matches by directory alone, as before.
+    """
+    if conf is None:
+        return True
+    have = _conf_of(row, name)
+    if have is None:
+        return True
+    try:
+        return have == os.path.normcase(os.path.abspath(conf))
+    except Exception:
+        return True
 
 
 def _under(path, directory):
