@@ -70,9 +70,18 @@ Feature switches. All default to off except `serverManaged`.
 | `phaseAware` | Show the progression-tier control (needs mod-individual-progression). |
 | `botsAware` | Show bot counts and the Tools ▸ Bots tab (needs mod-playerbots). |
 | `addonsAware` | Show the Addons tab for this realm. |
+| `independent` | This realm holds its own ports and runs *beside* the active one. See below. |
 
 Setting a flag on does not create a feature. Each one is also gated on the relevant `.conf` actually
 existing, so turning `botsAware` on without mod-playerbots changes nothing.
+
+`independent` is the exception to `activeRealm`. That field exists because realms that all bind
+3724/8085 can only take turns, so the panel starts and stops whichever one the registry points at.
+A profile that declares its own auth, world and SOAP ports has no such conflict: it starts and stops
+on its own, beside whatever is active, and it refuses `switch` outright because there is nothing to
+switch away from. Use it for a build under test — a fork you are sending patches to, say — so trying
+it does not take down the realm you actually play on. Give it its own databases too; sharing a world
+database with the realm it was cloned from is how a test becomes an outage.
 
 ### `launch`
 
@@ -81,6 +90,27 @@ existing, so turning `botsAware` on without mod-playerbots changes nothing.
 ```
 
 What the Play button runs.
+
+It may also be a **list**, when one realm can be played by more than one client — a server that
+serves both a custom client and a stock one, say. Each entry adds a Play button: the first is the
+default the main button uses, and the rest appear beside it and on the Server tab under *Clients*.
+
+```json
+"launch": [
+  { "id": "custom", "label": "Play (custom client)", "kind": "vbs",
+    "target": "tools/launch-custom.vbs", "workdir": "client-custom",
+    "note": "through the bridge on 8088" },
+  { "id": "stock", "label": "Play (stock client)", "kind": "exe",
+    "target": "client/Wow.exe", "workdir": "client",
+    "note": "straight to the world on 8086" }
+]
+```
+
+`id` is what `POST /v1/launch/<slug>` takes as `{"target": "<id>"}`, `label` is the button text and
+`note` its tooltip. Prefer a directory per client over one client whose realm list is rewritten at
+launch: two clients that differ only in which server they dial rarely stay that way, and a wrapper
+that edits files behind the launcher's back leaves the wrong realm selected any time it does not get
+to run its restore step.
 
 ### `nestedUnder` — optional, for a second mode of the same server
 
@@ -123,7 +153,25 @@ out of `paths.server`, using the `worldserver.conf` next to them.
 | `logs` | Log directory, overriding `paths.logs`. | A non-default config writes wherever *its* `LogsDir` points. Name the wrong one and the panel reads a world that is up and ready as "maps still loading" forever — the previous run's log is still there and still says `Halting process`. |
 | `authserver` | `false` if this realm has no `authserver.exe`. | Auth served by something else. Starting one anyway takes port 3724 from your other realms to run a process nothing in this profile talks to. |
 | `python` | Interpreter for the helpers below. | Only if the auto-detected one is wrong. |
+| `realmRows` | Extra `realmlist` ids this realm keeps online. | One world reachable at two addresses. See below. |
 | `helpers` | Extra processes to start with the realm. | See below. |
+
+#### `world.realmRows`
+
+```json
+"realmRows": [2]
+```
+
+The ids of `realmlist` rows this profile owns *besides* its own `RealmID`. You need this when one
+world has to be reachable at two addresses — because two different clients cannot use the same one,
+for instance, so one row points at a translating proxy and the other straight at the world.
+
+It exists because of how the offline flag is maintained: the authserver marks **every** realm offline
+at startup (`UPDATE realmlist SET flag = flag | 2`, no `WHERE`), and each worldserver then clears the
+flag for its own `RealmID` and no other. A second row pointing at the same world is therefore owned by
+nothing, and disappears from the realm list at the next authserver start — not when you add it, which
+is what makes it puzzling. Listing the id here has the panel clear the flag after the realm starts,
+and print the rows back by name so you can see which ones it actually found.
 
 #### `world.helpers`
 
